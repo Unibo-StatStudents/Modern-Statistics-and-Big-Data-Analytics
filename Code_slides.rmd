@@ -1,0 +1,1781 @@
+---
+title: "Exam code slides"
+output: github_document
+author: "Sebastian Veuskens"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Hey guys!
+
+Here is a comprehensive collection of all the code he had in his slides, unified in one place. I made only minor changes to the code, comments etc. are left inside. I figure this can be useful for debugging and faster look up. 
+
+Feel free to make comments or suggestions on how this could be improved! 
+
+# Prelimineries and Introduction 
+
+## Simple plots 
+
+### Example dataset Old Faithful Geyser 
+Slide 10 (plot slide 9)
+```{r}
+library(MASS)
+data(geyser)
+# You can also load geyser.dat from Moodle and read it with
+# geyser <- read.table("geyser.dat",header=TRUE)
+# Here’s how it looks like:
+str(geyser)
+#’data.frame’: 299 obs. of 2 variables:
+# $ waiting : num 80 71 57 80 75 77 60 86 77 56 ...
+# $ duration: num 4.02 2.15 4 4 4 ...
+plot(geyser)
+```
+
+### German bundestag election pair plot 
+Slide 12 (plot slide 11)
+```{r}
+library(flexclust)
+p05 <- bundestag(2005)
+# You can also load bundestag.dat from Moodle and read it with
+# bundestagdata <- read.table("bundestag.dat",header=TRUE)
+# The variables in p05 are bundestag[,1:5];
+# the variables state and ewb below are variables 6 and 7
+# in bundestagdata.
+str(p05)
+# How the object looks like:
+# num [1:299, 1:5] 0.391 0.362 0.363 0.376 0.415 ...
+# - attr(*, "dimnames")=List of 2
+# ..$ : chr [1:299] "Flensburg - Schleswig" "Nordfriesland -
+# Dithmarschen Nord" "Steinburg - Dithmarschen Sued"
+# "Rendsburg-Eckernfoerde" ...
+# ..$ : chr [1:5] "SPD" "UNION" "GRUENE" "FDP" ...
+# federal states:
+state <- bundestag(2005, state=TRUE)
+# ewb takes values "East", "West", "Berlin" as explained:
+ewb <- rep("West",299)
+ewb[state=="Berlin"] <- "Berlin"
+ewb[state %in% c("Brandenburg","Mecklenburg-Vorpommern","Sachsen",
+"Sachsen-Anhalt","Thueringen")] <- "East"
+# Plotting
+pairs(p05,xlim=c(0,0.6),ylim=c(0,0.6),cex=0.5)
+# Note the xlim, ylim parameters. All values of all variables
+# have the same meaning, so fixing the x and y value range for
+# all variables simultaneously will show which parties are
+# big and which are small.
+# cex=0.5 makes plot symbols smaller.
+```
+
+### Olive oil pairplot 
+Slides 15 (plot slide 14) 
+```{r}
+library(pdfCluster)
+data(oliveoil)
+# You can also load oliveoil.dat from Moodle and read it with
+# oliveoil <- read.table("oliveoil.dat",header=TRUE)
+# Look at object:
+str(oliveoil)
+# ’data.frame’: 572 obs. of 10 variables:
+# $ macro.area : Factor w/ 3 levels "South","Sardinia",..: 1 1 1 1 1 1 1 1 1 1 ...
+# $ region : Factor w/ 9 levels "Apulia.north",..: 1 1 1 1 1 1 1 1 1 1 ...
+# $ palmitic : int 1075 1088 911 966 1051 911 922 1100 1082 1037 ...
+# $ palmitoleic: int 75 73 54 57 67 49 66 61 60 55 ...
+# $ stearic : int 226 224 246 240 259 268 264 235 239 213 ...
+# $ oleic : int 7823 7709 8113 7952 7771 7924 7990 7728 7745 7944 ...
+# $ linoleic : int 672 781 549 619 672 678 618 734 709 633 ...
+# $ linolenic : int 36 31 31 50 50 51 49 39 46 26 ...
+# $ arachidic : int 60 61 63 78 80 70 56 64 83 52 ...
+# $ eicosenoic : int 29 29 29 35 46 44 29 35 33 30 ...
+# The chemical variables:
+olive <- oliveoil[,3:10]
+# Plot:
+pairs(olive,cex=0.3)
+```
+
+Visualize macro areas of olive oil data 
+Slide 16 
+```{r}
+pairs(olive,cex=0.3,col=oliveoil[,1])
+# This works despite oliveoil[,1] being a factor!
+```
+
+## Principal Component Analysis 
+### Olive oil (non-standardized)
+Slide 22 (plot 23 and 24)
+```{r}
+prolive <- princomp(olive)
+# Also function prcomp does PCA, this is preferred by some sources.
+summary(prolive)
+# Importance of components:
+# Comp.1 Comp.2 Comp.3 Comp.4
+# Standard deviation 479.7299024 150.82827868 45.394449751 27.522646558
+# Proportion of Variance 0.8970072 0.08866821 0.008031707 0.002952451
+# Cumulative Proportion 0.8970072 0.98567544 0.993707152 0.996659603
+# Comp.5 Comp.6 Comp.7 Comp.8
+# Standard deviation 24.78169442 1.196956e+01 7.1390744088 6.9756965249
+# Proportion of Variance 0.00239367 5.584168e-04 0.0001986489 0.0001896608
+# Cumulative Proportion 0.99905327 9.996117e-01 0.9998103392 1.0000000000
+plot(prolive,main="Olive oil principal components") # Variance captured
+biplot(prolive,cex=0.7) # Biplot with variable axes
+```
+
+### Olive oil (standardized)
+Slide 27 (plots 28, 29 and 30)
+```{r}
+library(fpc)
+# This is needed for the use of clusym in plot later
+solive <- scale(olive) # Standardise data
+sprolive <- princomp(solive) # PCA
+summary(sprolive)
+# Importance of components:
+# Comp.1 Comp.2 Comp.3 Comp.4 Comp.5
+# Standard deviation 1.9274086 1.3276711 1.0072629 0.88966996 0.57726430
+# Proportion of Variance 0.4651763 0.2207247 0.1270444 0.09911235 0.04172721
+# Cumulative Proportion 0.4651763 0.6859009 0.8129454 0.91205772 0.95378493
+# Comp.6 Comp.7 Comp.8
+# Standard deviation 0.49838105 0.34440148 0.0455864323
+# Proportion of Variance 0.03110233 0.01485251 0.0002602203
+# Cumulative Proportion 0.98488727 0.99973978 1.0000000000
+plot(sprolive,main="Standardised olive oil principal components")
+biplot(sprolive,cex=0.7) # Biplot with variable axes
+plot(sprolive$scores,col=oliveoil[,2],pch=clusym[oliveoil[,2]]) # First two PCs with regions
+```
+
+## More example datasets 
+### Veronica plants 
+Slide 34 (plots 33) 
+```{r}
+veronica <- read.table("data/veronica.dat")
+# This assumes that the data set in in the directory in which R is run;
+# otherwise you need to add the location where you have put the data set.
+str(veronica)
+#’data.frame’: 207 obs. of 583 variables:
+# $ V1 : int 0 0 0 1 0 0 0 0 0 1 ...
+# $ V2 : int 0 0 0 0 0 1 0 0 0 0 ...
+# $ V3 : int 1 1 0 1 0 0 0 0 0 0 ...
+# $ V4 : int 0 0 0 0 0 0 0 0 0 0 ...
+# (...)
+# Some things can better be done on matrices:
+veronicam <- as.matrix(veronica)
+heatmap(veronicam,Rowv=NA,Colv=NA,col=grey(seq(1,0,-0.01)),scale="none")
+# rows are plants, columns are variables
+```
+
+### Artificial data set 1
+Slide 36 (plot 35)
+```{r}
+# This is how I generated the data set.
+# You actually don’t need to do this, use file "clusterdata1.dat"
+# from Virtuale.
+library(sn)
+set.seed(665544)
+v1 <- c(rnorm(50,0,1), rsn(70,5,1,8), rnorm(30,6,1))
+v2 <- c(rnorm(50,0,1), rsn(70,0,1,8), 8+rt(30,5))
+clusterdata1 <- cbind(v1,v2)
+# WARNING! The function rsn has changed its precise
+# handling of random numbers in an update, which means that
+# the code above will produce a slightly different data set
+# now, despite the set.seed.
+plot(clusterdata1)
+```
+
+### Artificial data set 2
+Slide 38 (plots 37)
+```{r}
+set.seed(77665544)
+x1 <- rnorm(20)
+y1 <- rnorm(20)
+x2 <- rnorm(20,mean=10)
+y2 <- rnorm(20)
+x3 <- runif(100,-20,30)
+y3 <- runif(100,20,40)
+clusterdata2 <- cbind(c(x1,x2,x3),c(y1,y2,y3))
+plot(clusterdata2)
+```
+
+# K-means 
+## Examples 
+### Artificial data set 1 
+Slide 50 (plots 48 and 49)
+```{r}
+set.seed(665544)
+c1k3 <- kmeans(clusterdata1,centers=3,nstart=100)
+# nstart indicates the number of random initialisations for
+# starting the algorithm. The default value is 1, and this really
+# should be changed.
+# There’s also a parameter iter.max that gives the maximum number
+# of iterations before the algorithm is stopped in any case.
+# The default of this is 10, which is too low in my view,
+# however for the mostly small datasets presented here it should
+# be enough.
+plot(clusterdata1,col=c1k3$cluster,pch=clusym[c1k3$cluster])
+# clusym is a character vector with numbers "1", "2", etc.
+# Show the cluster means:
+points(c1k3$centers,pch="M",cex=2,col=4)
+```
+
+### Old Faithful Geyser (non-standardized)
+Slide 51 and 53 (plots 52 and 53)
+```{r}
+set.seed(12345)
+geyserk2 <- kmeans(geyser,2,nstart=100)
+plot(geyser,col=geyserk2$cluster,pch=clusym[geyserk2$cluster])
+#...and for 3 clusters
+geyserk3 <- kmeans(geyser,3,nstart=100)
+plot(geyser,col=geyserk3$cluster,pch=clusym[geyserk3$cluster])
+plot(geyser,xlim=c(40,110),ylim=c(0,70))
+```
+
+### Old Faithful Geyser (standardized)
+Slide 54 (plot 55)
+```{r}
+sgeyser <- scale(geyser)
+geysersk2 <- kmeans(sgeyser,2,nstart=100)
+plot(sgeyser,col=geysersk2$cluster,pch=clusym[geysersk2$cluster])
+geysersk3 <- kmeans(sgeyser,3,nstart=100)
+plot(sgeyser,col=geysersk3$cluster,pch=clusym[geysersk3$cluster])
+```
+
+### Bundestag data (non-standardized)
+#### Visualization 
+Slide 58 (plot 59) 
+```{r}
+set.seed(1234567)
+bundestagk5 <- kmeans(p05,5,nstart=100)
+pairs(p05,xlim=c(0,0.6),ylim=c(0,0.6),cex=0.7,
+col=bundestagk5$cluster,pch=clusym[bundestagk5$cluster])
+# For information what’s on offer in the output object:
+str(bundestagk5)
+# List of 9
+# $ cluster : Named int [1:299] 1 5 5 5 1 1 1 1 1 5 ...
+# ..- attr(*, "names")= chr [1:299] "Flensburg - Schleswig" "Nordfriesland - Dithmarschen Nord" "S$ centers : num [1:5, 1:5] 0.371 0.476 0.238 0.308 0.322 ...
+# ..- attr(*, "dimnames")=List of 2
+# .. ..$ : chr [1:5] "1" "2" "3" "4" ...
+# .. ..$ : chr [1:5] "SPD" "UNION" "GRUENE" "FDP" ...
+# $ totss : num 7.07
+# $ withinss : num [1:5] 0.29 0.139 0.119 0.553 0.218
+# $ tot.withinss: num 1.32
+# $ betweenss : num 5.75
+# $ size : int [1:5] 72 44 38 63 82
+# $ iter : int 2
+# $ ifault : int 0
+# - attr(*, "class")= chr "kmeans"
+```
+
+#### Cluster interpretation
+Slide 60
+```{r}
+bundestagk5$centers
+# SPD UNION GRUENE FDP LINKE
+# 1 0.3709695 0.3258766 0.11039143 0.10678831 0.05418565
+# 2 0.4755049 0.2809211 0.07737812 0.07977076 0.05684986
+# 3 0.2382177 0.5235427 0.06558486 0.09447968 0.03217685
+# 4 0.3076717 0.2555014 0.05407416 0.07920767 0.24680508
+# 5 0.3219290 0.4031411 0.08349274 0.11502019 0.04082300
+table(bundestagk5$cluster,ewb)
+# ewb
+# Berlin East West
+# 1 6 0 66
+# 2 0 0 44
+# 3 0 0 38
+# 4 6 53 4
+# 5 0 0 82
+table(bundestagk5$cluster,state)
+# state
+# Baden-Wuerttemberg Bayern Berlin Brandenburg Bremen Hamburg Hessen
+# 1 7 1 6 0 1 5 11
+# 2 0 0 0 0 1 1 4
+# 3 3 32 0 0 0 0 0
+# 4 0 0 6 10 0 0 0
+# 5 27 12 0 0 0 0 6
+# state
+# Mecklenburg-Vorpommern Niedersachsen Nordrhein-Westfalen Rheinland-Pfalz
+# 1 0 8 21 6
+# 2 0 17 20 0
+# 3 0 1 2 0
+# 4 7 0 0 0
+# 5 0 3 21 9
+# state
+# Saarland Sachsen Sachsen-Anhalt Schleswig-Holstein Thueringen
+# 1 0 0 0 6 0
+# 2 0 0 0 1 0
+# 3 0 0 0 0 0
+# 4 4 17 10 0 9
+# 5 0 0 0 4 0
+```
+
+## K-means is inconsistent ML-estimator 
+Slides 73 and 74 (plot 72)
+```{r}
+xpoints <- seq(-4,4,by=0.01)
+norm1 <- dnorm(xpoints,mean=-1,sd=1)
+norm2 <- dnorm(xpoints,mean=1,sd=1)
+# Plotting densities:
+plot(xpoints,norm1,type="l",ylab="density")
+points(xpoints,norm2,type="l")
+# red line, and means of distributions
+lines(c(0,0),c(0,0.4),col=2)
+points(1,0,pch="X",col=4)
+points(-1,0,pch="X",col=4)
+# Computations for truncated distributions.
+# See https://en.wikipedia.org/wiki/Truncated_normal_distribution
+# for formulae.
+# Probability of being below zero for left Gaussian
+prob1 <- pnorm(0,-1,1)
+# Probability of being below zero for right Gaussian
+prob2 <- pnorm(0,1,1)
+# Expected value of Gaussian with mean -1, truncated at 0.
+te1 <- -1-dnorm(1)/pnorm(1)
+# Expected value of Gaussian with mean 1, truncated at 0.
+te2 <- 1-dnorm(-1)/pnorm(-1)
+# Expected value for left cluster combines the two according to
+# their probabilities for their contributions to the left cluster  
+ecluster1 <- prob1*te1+prob2*te2
+# Symmetric for right cluster.
+ecluster2 <- -ecluster1
+# Plot cluster means
+points(ecluster1,0,pch="M",col=3)
+points(ecluster2,0,pch="M",col=3)
+```
+
+## Number of clusters 
+### Elbow plot 
+Slide 80 (plot 79)
+```{r}
+sk <- numeric(0)
+kclusterings <- list()
+for (k in 1:10){
+    kclusterings[[k]] <- kmeans(clusterdata1,k,nstart=100)
+    sk[k] <- kclusterings[[k]]$tot.withinss
+    # This is the component that has the S_k
+}
+plot(1:10,sk,xlab="k",ylab="S_k",type="l")
+```
+
+### Gap statistic 
+Slide 92 and 93 (plots 91 and 94)
+```{r}
+library(cluster) # Has the clusGap function
+set.seed(123456)
+# K.max indicates the maximum number of clusters; B=100 indicates
+# 100 simulations from uniform distribution; d.power=2 indicates squared
+# Euclidean distances (as in the original paper and in class),
+# spaceH0="scaledPCA" specifies the way the uniform distribution is simulated
+cg1 <- clusGap(clusterdata1,kmeans,K.max=10,B=100,d.power=2,spaceH0="scaledPCA",nstart=100)
+print(cg1,method="globalSEmax",SE.factor=2)
+# Clustering Gap statistic ["clusGap"] from call:
+# clusGap(x = clusterdata1, FUNcluster = kmeans, K.max = 10, B = 100,
+# d.power = 2, spaceH0 = "scaledPCA", nstart = 100)
+# B=100 simulated reference sets, k = 1..10; spaceH0="scaledPCA"
+# --> Number of clusters (method ’globalSEmax’, SE.factor=2): 3
+# logW E.logW gap SE.sim
+# [1,] 7.222172 7.518419 0.2962467 0.06073207
+# [2,] 6.419890 6.634534 0.2146432 0.05540815
+# [3,] 4.658166 6.306516 1.6483500 0.05224121
+# [4,] 4.475601 6.007479 1.5318780 0.05353712
+# [5,] 4.280162 5.721320 1.4411574 0.04925218
+# [6,] 4.159101 5.483455 1.3243545 0.04770478
+# [7,] 4.018231 5.298835 1.2806042 0.04809762
+# [8,] 3.894625 5.140342 1.2457174 0.05056464
+# [9,] 3.768839 5.005861 1.2370216 0.05406971
+# [10,] 3.623056 4.880549 1.2574927 0.05641072
+plot(cg1)
+# Values of gap
+plot(1:10,exp(cg1$Tab[,1]),xlab="k",ylab="S_k",type="l")
+# Values of S_k; cg1$Tab[,1] has values of log(S_k), therefore the exp.
+plot(1:10,cg1$Tab[,1],xlab="k",ylab="log S_k",type="l")
+points(1:10,cg1$Tab[,2],xlab="k",ylab="log S_k",type="l",lty=2)
+legend(6,6.5,c("log S_k in data","E(log S_k) uniform"),lty=1:2)
+# Values of log(S_k) and its expectation under uniform distribution
+# The latter are in cg1$Tab[,2].
+```
+
+### Gapnc 
+#### Function 
+Slide 96 
+```{r}
+gapnc <- function(data,FUNcluster=kmeans,
+                  K.max=10, B = 100, d.power = 2,
+                  spaceH0 ="scaledPCA",
+                  method ="globalSEmax", SE.factor = 2,...) {
+    # As in original clusGap function the ... arguments are passed on
+    # to the clustering method FUNcluster (kmeans).
+    # Run clusGap
+    gap1 <- clusGap(data,kmeans,K.max, B, d.power,spaceH0,...)
+    # Find optimal number of clusters; note that the method for
+    # finding the optimum and the SE.factor q need to be specified here.
+    nc <- maxSE(gap1$Tab[,3],gap1$Tab[,4],method, SE.factor)
+    # Re-run kmeans with optimal nc.
+    kmopt <- kmeans(data,nc,...)
+    out <- list()
+    out$gapout <- gap1
+    out$nc <- nc
+    out$kmopt <- kmopt
+    out
+}
+# The output of clusGap is in component gapout.
+# The optimal number of clusters is in component nc.
+# The optimal kmeans output is in component kmopt.
+```
+
+#### Example Artificial data set 1
+Slide 97 
+```{r}
+set.seed(123456)
+cgnc1 <- gapnc(clusterdata1,nstart=100)
+# Could also specify K.max, B, d.power, spaceH0, method, SE.factor
+plot(cgnc1$gapout) # same clusgap plot as before
+print(cgnc1$gapout, method="globalSEmax", SE.factor=2)
+# Unfortunately need to specify method and SE.factor here
+# once more to reproduce earlier output.
+cgnc1$nc
+# [1] 3
+# plot(data,col=cgnc1$kmopt$cluster) # As seen before
+```
+
+#### Example Geyser data 
+Slide 99 (plot 98) 
+```{r}
+set.seed(76543)
+# Use the scaled version of the data set!
+cgg <- clusGap(sgeyser,kmeans,K.max=10,B=100,d.power=2,spaceH0="scaledPCA",nstart=100)
+print(cgg,method="globalSEmax",SE.factor=2)
+# --> Number of clusters (method ’globalSEmax’, SE.factor=2): 3
+plot(cgg)
+# Values of gap
+plot(1:10,exp(cgg$Tab[,1]),xlab="k",ylab="S_k",type="l")
+# Values of S_k
+plot(1:10,cgg$Tab[,1],xlab="k",ylab="log S_k",type="l")
+points(1:10,cgg$Tab[,2],xlab="k",ylab="log S_k",type="l",lty=2)
+legend(6,5,c("log S_k in data","E(log S_k) uniform"),lty=1:2)
+# Values of log(S_k) and its expectation under uniform distribution
+# Unfortunately, the "clusGap"-function doesn’t give out a clustering,
+# so this has to be computed afterwards again.
+geyser3 <- kmeans(sgeyser,3,nstart=100)
+plot(sgeyser,col=geyser3$cluster,pch=clusym[geyser3$cluster])
+# Alternatively:
+cgg2 <- gapnc(sgeyser,nstart=100)
+```
+
+#### Example bundestag data 
+Slide 101 (plots 102 and 103)
+```{r}
+set.seed(12345)
+cgp05 <- clusGap(p05,kmeans,,K.max=10,B=100,d.power=2,spaceH0="scaledPCA",nstart=100)
+print(cgp05,method="globalSEmax",SE.factor=2)
+# --> Number of clusters (method ’globalSEmax’, SE.factor=2): 9
+plot(cgp05)
+# Gap values
+plot(1:10,exp(cgp05$Tab[,1]),xlab="k",ylab="S_k",type="l")
+# S_k values
+plot(1:10,cgp05$Tab[,1],xlab="k",ylab="log S_k",type="l")
+points(1:10,cgp05$Tab[,2],xlab="k",ylab="log S_k",type="l",lty=2)
+legend(6,5,c("log S_k in data","E(log S_k) uniform"),lty=1:2)
+# log S_k values and expectation under uniform
+# Re-compute 9-means
+p059 <- kmeans(p05,9,nstart=100)
+pairs(p05,col=p059$cluster,cex=0.5)
+# Alternatively:
+cgp2 <- gapnc(p05,nstart=100)
+```
+
+# Dissimilarities 
+## Countinuous variables 
+### Euclidean and Manhatten 
+Slide 119 (plot 120)
+```{r}
+dolive2 <- dist(olive,method="euclidean")
+dolive1 <- dist(olive,method="manhattan")
+# This shows you how similar they are:
+plot(dolive1,dolive2,cex=0.3)
+# Actually, it makes much more of a difference to scale the data.
+solive <- scale(olive)
+dolives2 <- dist(solive,method="euclidean")
+dolives1 <- dist(solive,method="manhattan")
+plot(dolive2,dolives2,cex=0.3) # For example.
+# dist produces an object of class dist.
+# This is vector of all distances in one row.
+dolivematrix <- as.matrix(dolives2)
+# This gives the distance between observations 1 and 2.
+dolivematrix[1,2]
+# [1] 0.6644688
+# Distance matrix can be transformed into a dist-object by as.dist.
+```
+
+### Mahanalobis distance 
+Slide 121
+```{r}
+# The mahalanobis command can only compute a vector of
+# Mahalanobis distances, so producing all distances is
+# more tedious; here’s how to make a distance matrix:
+mahalm <- matrix(0,ncol=572,nrow=572)
+olivecov <- cov(olive)
+for (i in 1:572)
+mahalm[i,] <- mahalanobis(olive,as.numeric(olive[i,]),olivecov)
+# Note that for the Mahalanobis distance it doesn’t make
+# a difference whether the data set is scaled or not.
+plot(as.dist(mahalm),dolives2,cex=0.3)
+```
+
+## Binary and categorical variables 
+### Simple Matching distance 
+Slide 128 (plot 129)
+```{r}
+jveronica <- dist(veronica,method="binary")
+smveronica <- dist(veronica,method="manhattan")/583
+plot(jveronica,smveronica,cex=0.3)
+```
+
+## Correlation dissimilarity 
+Slide 132 
+```{r}
+corp05 <- cor(p05)
+# > corp05
+# SPD UNION GRUENE FDP LINKE
+# SPD 1.00000000 -0.5662267 0.08935976 -0.3300797 -0.1337904
+# UNION -0.56622666 1.0000000 -0.15295824 0.3563825 -0.6220824
+# GRUENE 0.08935976 -0.1529582 1.00000000 0.3386211 -0.3644767
+# FDP -0.33007972 0.3563825 0.33862105 1.0000000 -0.4741279
+# LINKE -0.13379043 -0.6220824 -0.36447674 -0.4741279 1.0000000
+cordistp05 <- 0.5-corp05/2
+# > cordistp05
+# SPD UNION GRUENE FDP LINKE
+# SPD 0.0000000 0.7831133 0.4553201 0.6650399 0.5668952
+# UNION 0.7831133 0.0000000 0.5764791 0.3218088 0.8110412
+# GRUENE 0.4553201 0.5764791 0.0000000 0.3306895 0.6822384
+# FDP 0.6650399 0.3218088 0.3306895 0.0000000 0.7370640
+# LINKE 0.5668952 0.8110412 0.6822384 0.7370640 0.0000000
+```
+
+### Gower coefficient 
+Slides 140 and 142 
+Needed: 
+```{r}
+# The daisy function requires library(cluster)
+housing <- read.table("data/Boston.dat",header=TRUE)
+housing$rad <- as.factor(housing$rad)
+# Gower dissimilarity:
+gdhousing <- daisy(housing,metric="gower",type=list(symm=4))
+# Specify that binary variable 4 chas is treated as symmetric,
+# i.e., simple matching distance.
+# gdhousing is a dist object.
+# metric="gower" is unnecessary, because this is
+# automatically done if factor or ordered variables are in data
+# Note also that treating a binary variable as "symm"
+# is mathematically equivalent to treating it as numerical.
+
+housing$rad <- as.ordered(housing$rad)
+# Gower dissimilarity:
+gdhousing2 <- daisy(housing,metric="gower",type=list(asymm=4))
+# symm and asymm can also take vectors such as
+# type=list(asymm=c(2,4),symm=c(3,6)) if vars 2,3,4,6 are binary.
+```
+
+## Multidimensional Scaling 
+### Examples (bundestag and veronica)
+Slides 145 and 146 (plot 147)
+Needed: corp05, jveronica
+```{r}
+cordistp05 <- 0.5-corp05/2
+# > cordistp05
+# SPD UNION GRUENE FDP LINKE
+# SPD 0.000 0.783 0.455 0.665 0.566
+# UNION 0.783 0.000 0.576 0.321 0.811
+# GRUENE 0.455 0.576 0.000 0.330 0.682
+# FDP 0.665 0.321 0.330 0.000 0.737
+# LINKE 0.566 0.811 0.682 0.737 0.000
+
+library(smacof)
+mdsparties <- mds(cordistp05,ndim=2)
+# ndim is the number of dimensions here. 2 is default.
+plot(mdsparties$conf,type="n",asp=1)
+# asp=1 is the "aspect ratio" and means that distances are
+# correctly represented,
+# because x and y axis scaling are the same.
+text(mdsparties$conf, labels=dimnames(p05)[[2]])
+mdsparties$stress
+# [1] 0.05975537 # 6%, not much information missing
+mdsveronica <- mds(jveronica)
+plot(mdsveronica$conf,asp=1)
+mdsveronica$stress
+# [1] 0.2577986 # quite a bit of information not represented.
+# Could try ndim higher than 2, but standard images are 2-d.
+```
+
+## Similarity between clusters 
+### Adjusted Rand index 
+Slide 155 
+```{r}
+library(mclust) # This has the adjustedRandIndex command.
+solive <- scale(olive)
+olive3 <- kmeans(olive,3,nstart=100)
+olive3s <- kmeans(solive,3,nstart=100)
+adjustedRandIndex(olive3$cluster,olive3s$cluster)
+# 0.4587804, these are somewhat different.
+adjustedRandIndex(olive3$cluster,oliveoil$macro.area)
+# 0.3182057
+adjustedRandIndex(olive3s$cluster,oliveoil$macro.area)
+# 0.448355, both OK but not great, with scaling clearly better
+# The gap statistic suggests a higher number of clusters.
+cgolive <- clusGap(solive,kmeans,20,B=100,d.power=2,spaceH0="scaledPCA",nstart=100)
+print(cgolive,method="globalSEmax",SE.factor=2)
+# B=100 simulated reference sets, k = 1..20; spaceH0="scaledPCA"
+# --> Number of clusters (method ’globalSEmax’, SE.factor=2): 19
+kmolive19 <- kmeans(solive,19,nstart=100)
+adjustedRandIndex(kmolive19$cluster,oliveoil$region)
+# [1] 0.4228399
+adjustedRandIndex(kmolive19$cluster,oliveoil$macro.area)
+# [1] 0.1793979
+# Not better.
+```
+
+# Hierarchical clustering 
+## Standard methods 
+### Bundestag distance 
+Slides 166 (plots 165)
+```{r}
+cordistp05
+# SPD UNION GRUENE FDP LINKE
+# SPD 0.00 0.78 0.45 0.66 0.56
+# UNION 0.78 0.00 0.57 0.32 0.81
+# GRUENE 0.45 0.57 0.00 0.33 0.68
+# FDP 0.66 0.32 0.33 0.00 0.73
+# LINKE 0.56 0.81 0.68 0.73 0.00
+```
+
+### Veronica data
+#### Cluster observations 
+Slide 170 (plot 171)
+```{r}
+# Average Linkage
+plantclust <- hclust(jveronica,method="average")
+# Plot the dendrogram:
+plot(plantclust)
+# 8 looks like a good number of clusters.
+plantclust8 <- cutree(plantclust,8)
+# "Estimating" the number of cluster from
+# looking at the dendrogram is somewhat questionable though.
+# Visualisation using MDS:
+plot(mdsveronica$conf,col=plantclust8,pch=clusym[plantclust8])
+# This looks good.
+# Single Linkage
+plantclusts <- hclust(jveronica,method="single")
+plot(plantclusts) # 8 looks still OK
+plantclusts8 <- cutree(plantclusts,8)
+plot(mdsveronica$conf,col=plantclusts8,pch=clusym[plantclusts8])
+# The same as before.
+# Complete Linkage
+plantclustc <- hclust(jveronica,method="complete")
+plot(plantclustc) # Could use 8 or 9.
+plantclustc8 <- cutree(plantclustc,8)
+plot(mdsveronica$conf,col=plantclustc8,pch=clusym[plantclustc8])
+# The same as before.
+```
+
+#### Cluster genes 
+Slide 172 (plot 173)
+```{r}
+# I decided to use the Jaccard distance
+# also for AFLP bands/genes:
+vveronica <- dist(t(veronicam),method="binary")
+varclust <- hclust(vveronica,method="average")
+# As a clustering this is pretty messy,
+# but still it
+# can be used to impose an order of genes.
+# This submits the two dendrograms to the heatmap:
+heatmap(veronicam,Rowv=as.dendrogram(plantclust),
+        Colv=as.dendrogram(varclust),
+        col=grey(seq(1,0,-0.01)))
+```
+
+### Old Faithful Geyser data
+Slide 174 (plots 175, 176 and 177)
+```{r}
+# Average Linkage
+geyclust <- hclust(dist(sgeyser),method="average")
+plot(geyclust)
+# 4 looks like a good K, will isolate one outlier
+geyclust4 <- cutree(geyclust,4)
+plot(sgeyser,col=geyclust4,pch=clusym[geyclust4])
+# Single Linkage
+geyclusts <- hclust(dist(sgeyser),method="single")
+plot(geyclusts)
+# 7 looks like a good K
+geyclusts7 <- cutree(geyclusts,7)
+plot(sgeyser,col=geyclusts7,pch=clusym[geyclusts7])
+# Complete Linkage
+geyclustc <- hclust(dist(sgeyser),method="complete")
+plot(geyclustc)
+# 5 looks like a good K
+geyclustc5 <- cutree(geyclustc,5)
+plot(sgeyser,col=geyclustc5,pch=clusym[geyclustc5])
+```
+
+## Wards method 
+### Bundestag data 
+Slide 184 and 185 
+```{r}
+# kmeans with 5 clusters
+set.seed(12345)
+kmbundestag5 <- kmeans(p05,5,nstart=100)
+# Ward’s method
+wbundestag <- hclust(dist(p05),method="ward.D2")
+# plot(wbundestag, labels=FALSE) # Dendrogram not shown
+# Run with labels=FALSE because otherwise constituency names
+# will dominate the plot.
+# Same as wbundestag <- agnes(p05,method="ward")
+# With K=5:
+wbundestag5 <- cutree(wbundestag,5)
+
+table(kmbundestag5$cluster,wbundestag5)
+# wbundestag5
+# 1 2 3 4 5
+# 1 27 0 0 55 0
+# 2 72 0 0 0 0
+# 3 0 0 0 16 22
+# 4 8 0 36 0 0
+# 5 0 63 0 0 0
+# Fairly different.
+adjustedRandIndex(kmbundestag5$cluster,wbundestag5)
+# [1] 0.6362054
+library(fpc)
+# This can be used to compute S for any clustering:
+kmb <- cluster.stats(dist(p05),kmbundestag5$cluster)
+kmb$within.cluster.ss
+# 1.319956
+# This is the same as kmbundestag5$tot.withinss
+wmb <- cluster.stats(dist(p05),wbundestag5)
+wmb$within.cluster.ss
+# 1.534854
+# Quite a bit worse.
+```
+
+## PAM 
+### Bundestag data 
+Slide 192 (plot 193)
+Needed: p05 
+```{r}
+library(cluster)
+bundestagk5 <- kmeans(p05,5,nstart=100)
+# By default, if pam is called with a data set that is not a
+# dist-object, the Euclidean distance is used:
+bundestagp5 <- pam(p05,5)
+adjustedRandIndex(bundestagk5$cluster,bundestagp5$cluster)
+# [1] 0.7249983
+# Alternatively, pam can be started with a dist-object, which allows
+# computing it with the Manhattan-distance:
+p05manhattan <- dist(p05,method="manhattan")
+bundestagp5m <- pam(p05manhattan,5)
+adjustedRandIndex(bundestagp5$cluster,bundestagp5m$cluster)
+# [1] 0.6607979
+adjustedRandIndex(bundestagk5$cluster,bundestagp5m$cluster)
+# [1] 0.8863854
+mdsp05m <- mds(p05manhattan)
+plot(mdsp05m$conf,col=bundestagk5$cluster,pch=clusym[bundestagk5$cluster])
+plot(mdsp05m$conf,col=bundestagp5$cluster,pch=clusym[bundestagp5$cluster])
+plot(mdsp05m$conf,col=bundestagp5m$cluster,pch=clusym[bundestagp5m$cluster])
+# Could also use PCA to visualise this.
+prp05 <- princomp(p05)
+plot(prp05$scores,col=bundestagk5$cluster,pch=clusym[bundestagk5$cluster])
+plot(prp05$scores,col=bundestagp5$cluster,pch=clusym[bundestagp5$cluster])
+plot(prp05$scores,col=bundestagp5m$cluster,pch=clusym[bundestagp5m$cluster])
+```
+
+## Average Silhouette width
+### Different cluster sizes 
+Slide 198 (plot 199 and 200)
+Needed: p05manhatten 
+```{r}
+pasw <- NA
+pclusk <- list()
+psil <- list()
+# Look at K between 2 and 30:
+for (k in 2:30){
+# PAM clustering:
+pclusk[[k]] <- pam(p05manhattan,k)
+# Computation of silhouettes:
+psil[[k]] <- silhouette(pclusk[[k]],dist=p05manhattan)
+# ASW needs to be extracted:
+pasw[k] <- summary(psil[[k]])$avg.width
+}
+# Plot the ASW-values against K:
+plot(1:30,pasw,type="l",xlab="Number of clusters",ylab="ASW")
+# Result in numbers:
+# > pasw
+# [1] NA 0.4867459 0.4228157 0.4265560 0.3779154 0.3345530
+# 0.3131574
+# [8] 0.3254449 0.3177023 0.3185734 0.3036558 0.3130183 0.3039691
+# 0.3157744
+# (...)
+# Best value at K=2.
+# MDS-plot:
+plot(mdsp05m$conf,col=pclusk[[2]]$cluster,pch=clusym[pclusk[[2]]$cluster])
+# Silhouette plots for 2 and 5 clusters:
+plot(psil[[2]])
+plot(psil[[5]])
+```
+
+### Comparison of cluster methods 
+Slide 201 and 204 (plots 202, 203 and 204) 
+Needed: jveronica 
+```{r}
+# PAM:
+pasw <- NA
+pclusk <- list()
+psil <- list()
+for (k in 2:30){
+    pclusk[[k]] <- pam(jveronica,k)
+    psil[[k]] <- silhouette(pclusk[[k]])
+    pasw[k] <- summary(psil[[k]])$avg.width
+}
+plot(1:30,pasw,type="l",xlab="Number of clusters",ylab="ASW",ylim=c(0.15,0.6))
+# Maximum at K=7, ASW=0.5386146
+# Average Linkage
+plantclust <- hclust(jveronica,method="average")
+tasw <- NA
+tclusk <- list()
+tsil <- list()
+for (k in 2:30){
+    tclusk[[k]] <- cutree(plantclust,k)
+    tsil[[k]] <- silhouette(tclusk[[k]],dist=jveronica)
+    tasw[k] <- summary(silhouette(tclusk[[k]],dist=jveronica))$avg.width
+}
+points(1:30,tasw,type="l",col=3,lty=2,lwd=2)
+# Maximum is at K=8, ASW=0.5524769
+# ...plots...
+legend(20,0.55,legend=c("PAM","ave.linkage"),col=c(1,3),lwd=c(1,2),lty=c(1,2))
+
+plot(psil[[7]])
+plot(psil[[8]])
+plot(tsil[[8]])
+```
+
+# Mixture Models 
+## Introduction 
+### Example 
+Slide 241 and 242 (plot 243, 244 and 245) 
+Needed: olive, oliveoil 
+```{r}
+library(mclust)
+molive <- Mclust(olive,G=1:15)
+summary(molive)
+# ----------------------------------------------------
+# Gaussian finite mixture model fitted by EM algorithm
+# ----------------------------------------------------
+#
+# Mclust VVE (ellipsoidal, equal orientation) model with 10 components:
+#
+# log.likelihood n df BIC ICL
+# -20448.03 572 197 -42146.84 -42193.07
+#
+# Clustering table:
+# 1 2 3 4 5 6 7 8 9 10
+# 30 96 110 37 50 64 34 49 45 57
+
+summary(molive$BIC)
+# Best BIC values:
+# VVE,10 VVV,6 VVE,12
+# BIC -42146.84 -42158.49981 -42176.74491
+# BIC diff 0.00 -11.65605 -29.90115
+adjustedRandIndex(molive$classification,oliveoil$region)
+# [1] 0.5914548
+# Fairly good
+# Diagnostic plots
+plot(molive)
+# Could try model with 3 clusters and compare with Macro areas
+molive3 <- Mclust(olive,G=3)
+adjustedRandIndex(molive3$classification,oliveoil$macro.area)
+# [1] 0.5349465
+# Also OKish
+# Set of diagnostic plots offered by mclust
+plot(molive3)
+# PCA can be clearer for not too low dimensional data
+sprolive <- princomp(solive)
+plot(sprolive$scores,col=molive$classification,
+pch=clusym[molive$classification])
+```
+
+### Specify certain models
+Slide 246 
+Needed: olive 
+```{r}
+# If you want one or more specific covariance matrix models,
+# you could specify modelNames, e.g.,
+moliveVVV <- Mclust(olive,G=1:10,modelNames="VVV")
+molivex <- Mclust(olive,G=1:10,modelNames=c("EEE","VVV"))
+# Information available in output object, e.g.
+molive$classification
+# Clustering vector
+molive$parameters
+# Estmated parameters
+molive$z
+# Matrix of posterior probabilities p_ik that point i was generated
+# by mixture component k
+```
+
+## Mixtures of skew and heavy-tailed distributions 
+### Example of multivariate t-mixture (olive oil)
+#### Computation 
+Slide 260 
+Needed: olive 
+```{r}
+library(teigen)
+set.seed(776655)
+tolive <- teigen(olive, Gs=1:12)
+# Gs: numbers of clusters, optimum decided by BIC
+# teigen has a parameter scale with default scale=TRUE.
+# This standardises data before clustering, so result should be
+# same as teigen(solive, Gs=1:12, scale=FALSE)
+# See teigen help page for more options.
+summary(tolive)
+#------------- Summary for teigen -------------
+# ------ RESULTS ------
+# Loglik: -1817.584
+# BIC: -5063.723
+# ICL: -5072.88
+# Model: UUUC
+# Groups: 5
+# Clustering Table:
+#
+# 1 2 3 4 5
+# 60 100 87 223 102
+```
+
+#### Assessment 
+Slides 262, 263, 264 and 265 (plots 264 and 265)
+Needed: tolive, sprolive, oliveoil 
+```{r}
+tolive$allbic # large is good.
+# G=1 G=2 G=3 G=4 G=5 G=6 G=7
+#UUUU -7889.168 -5720.133 -5680.123 -5275.945 -5075.159 -5222.871 -5383.248
+#UUUC -Inf -5724.228 -5669.654 -5262.440 -5063.723 -5211.953 -5342.531
+#CUCU -Inf -6277.511 -6112.269 -5819.137 -5566.531 -5693.455 -5564.644
+#CUCC -Inf -6275.323 -6105.870 -5807.910 -5552.134 -5673.826 -5577.603
+#CUUU -Inf -5783.868 -5950.907 -5449.103 -5269.403 -5387.851 -5159.616
+#CUUC -Inf -5777.513 -5946.490 -5430.813 -5254.264 -5363.843 -5155.408
+#CCCU -Inf -7371.333 -6877.942 -6613.939 -6217.014 -6051.247 -6013.761
+#CCCC -Inf -7365.670 -6882.688 -6623.697 -6209.228 -6031.467 -6000.251
+#CIUU -12967.869 -9969.186 -9568.104 -8457.330 -7873.963 -7582.871 -7409.848
+#CIUC -Inf -10025.944 -9593.945 -8444.805 -7900.001 -7593.757 -7413.229
+#CICU -Inf -11200.063 -10260.297 -9461.043 -8817.974 -8504.407 -8287.299
+#CICC -Inf -11194.998 -10261.022 -9463.984 -8808.221 -8479.225 -8274.528
+#UIIU -12939.113 -11306.381 -10822.561 -9807.542 -9119.964 -8971.279 -8869.141
+#(...)
+# G=8 G=9 G=10 G=11 G=12
+#UUUU -5164.612 -5259.720 -Inf -Inf -Inf
+#UUUC -5130.624 -5258.010 -Inf -Inf -Inf
+#(...)
+# ...very big list...
+
+str(tolive)
+# List of 13
+# $ iter : num 32
+# $ fuzzy : num [1:572, 1:5] 1.77e-17 5.24e-17 1.09e-15 2.04e-18 3.83e-20 ...
+# $ parameters :List of 9
+# ..$ df : num [1:5] 7.68 7.68 7.68 7.68 7.68
+# ..$ mean : num [1:5, 1:8] -0.971 -0.154 -0.764 0.921 -0.719 ...
+# ..$ lambda : num [1:5] 0.0542 0.1141 0.0376 0.1073 0.0368
+# ..$ d : num [1:8, 1:8, 1:5] -0.1013 -0.0102 0.9745 -0.1017 0.1085 ...
+# ..$ a : num [1:8, 1:8, 1:5] 19.5 0 0 0 0 ...
+# ..$ weights: num [1:572, 1:5] 0.00645 0.00653 0.00685 0.00434 0.00251 ...
+# ..$ sigma : num [1:8, 1:8, 1:5] 0.3136 0.0163 -0.0513 -0.0631 -0.1265 ...
+# ..$ pig : num [1:5] 0.105 0.176 0.153 0.389 0.177
+# ..$ conv : logi TRUE
+# $ allbic : num [1:28, 1:12] -7889 -Inf -Inf -Inf -Inf ...
+# ..- attr(*, "dimnames")=List of 2
+# .. ..$ : chr [1:28] "UUUU" "UUUC" "CUCU" "CUCC" ...
+# .. ..$ : chr [1:12] "G=1" "G=2" "G=3" "G=4" ...
+# $ bic : num -5064
+# $ bestmodel : chr "The best model (BIC of -5063.72) is UUUC with G=5"
+# $ modelname : chr "UUUC"
+# $ classification: int [1:572] 2 2 2 2 2 2 2 2 2 2 ...
+# $ G : int 5
+# (...and more...)
+
+plot(tolive,xmarg=1,ymarg=5,what="contour")
+plot(tolive,xmarg=1,ymarg=5,what="uncertainty")
+# The plot command for teigen allows for two kinds of plots.
+# Both are done on two variables, and xmarg, ymarg specify
+# the numbers of the variables used.
+
+plot(sprolive$scores,col=tolive$classification,pch=clusym[tolive$classification])
+# Plot on PCs
+adjustedRandIndex(tolive$classification,oliveoil$region)
+# [1] 0.7727825
+adjustedRandIndex(tolive$classification,oliveoil$macro.area)
+# [1] 0.6189345 # These are clearly better than from mclust.
+```
+
+### Mixture of skew-normal distributions 
+Slide 266, 267 and 268 (plot 269)
+Needed: solive, oliveoil 
+```{r}
+set.seed(67543)
+estg <- smsn.search(solive,nu=1,g.min=1,g.max=12,family="Skew.normal")
+# WARNING! This is not fast!
+# g.min, g.max min. and max. number of clusters.
+# nu is not needed for a skew normal mixture but has to be specified.
+# family="Skew.t" fits s skew t-distribution,
+# then nu is degrees of freedom.
+# For family="Skew.t" note that nu must be provided and will *not* be
+# estimated! Also it looks like only one value of nu can be specified
+# that will be used for all mixture components.
+# Can also specify uni.Gama=TRUE, which constrains
+# Sigma-deltaˆ* deltaˆ*T to be constant over clusters.
+
+str(estg) # (shortened)
+# List of 2 #
+# $ criteria : Named num [1:12] 7931 5920 5798 5507 5316 ...
+# (BIC-values)
+# $ best.model:List of 14
+# ..$ mu :List of 5 # means, I call them a.
+# .. ..$ : num [1:8] -0.778 -0.464 0.129 -0.225 1.166 ...
+# .. ..$ : num [1:8] -0.919 -0.554 0.853 0.84 -0.285 ...
+# (...)
+# ..$ Sigma :List of 5
+# .. ..$ : num [1:8, 1:8] 0.22921 -0.02283 0.01077 -0.088 0.00567 ...
+# .. ..$ : num [1:8, 1:8] 0.6224 0.0129 -0.0344 -0.1809 -0.1114 ...
+# (...)
+# ..$ shape :List of 5 # This is lambda.
+# .. ..$ : num [1:8, 1] 0.818 -1.005 -0.684 -0.535 -2.261 ...
+# .. ..$ : num [1:8, 1] -5.27 7.27 -3.34 3.89 -7.9 ...
+# (...)
+# (Component proportions)
+# ..$ pii : num [1:5] 0.173 0.11 0.389 0.152 0.176
+# ..$ logLik : num -1820
+# ..$ nu : num 1
+# ..$ aic : num 4168
+# ..$ bic : num 5316
+# ..$ edc : num 4903
+# ..$ icl : num 5321
+# ..$ iter : num 89
+# ..$ n : int 572
+# ..$ group : int [1:572] 5 5 5 5 5 5 5 5 5 5 ...
+# ..$ uni.Gama: logi FALSE
+
+adjustedRandIndex(estg$best.model$group,oliveoil$region)
+# [1] 0.7796783
+adjustedRandIndex(estg$best.model$group,oliveoil$macro.area)
+# [1] 0.6251346
+# About the same as from teigen, but slightly better.
+plot(1:12,estg$criteria,type="l",ylab="BIC",xlab="Number of clusters")
+plot(sprolive$scores,col=estg$best.model$group,pch=clusym[estg$best.model$group])
+```
+
+## A Mixture model for categorical data 
+### Example Veronica data 
+#### Computation 
+Slide 283 (plots 284 and 285) 
+Needed: veronica
+```{r}
+set.seed(887766)
+veronicabernm <- flexmixedruns(veronica,continuous=0,discrete=583,n.cluster=1:10)
+# This uses by default 20 random initialisations.
+# This will also fit mixtures with mixed type continuous and categorical variables.
+# Default assumption: continuous variables come first, therefore
+# continuous=0,discrete=583 - all variables are categorical.
+# With xvarsorted=FALSE, can specify freely what kind of variable is where.
+plot(1:10,veronicabernm$bicvals,typ="l",
+xlab="Number of clusters",ylab="BIC")
+plot(mdsveronica$conf,col=veronicabernm$flexout[[6]]@cluster,pch=clusym[veronicabernm$flexout[[6]]@cluster])
+```
+
+#### Result breakdown 
+Slides 286 and 287 
+Needed: veronicabernm 
+```{r}
+# Can access parameter estimators
+str(veronicabernm$flexout[[6]],max.level=2)
+# Formal class ’flexmix’ [package "flexmix"] with 18 slots
+# ..@ posterior :List of 2
+# ..@ weights : NULL
+# ..@ iter : int 4
+# ..@ cluster : int [1:207] 4 4 4 3 2 5 6 1 4 3 ...
+# ..@ logLik : num -13361
+# ..@ df : num 3467
+# ..@ control :Formal class ’FLXcontrol’ [package "flexmix"] with 6 slots
+# ..@ group : Factor w/ 0 levels:
+# ..@ size : Named int [1:6] 29 13 22 48 64 31
+# .. ..- attr(*, "names")= chr [1:6] "1" "2" "3" "4" ...
+# ..@ converged : logi TRUE
+# ..@ k0 : int 6
+# ..@ model :List of 1
+# ..@ prior : num [1:6] 0.1401 0.0628 0.1063 0.2319 0.3092 ...
+# ..@ components :List of 6
+# ..@ concomitant:Formal class ’FLXP’ [package "flexmix"] with 7 slots
+# ..@ formula :Class ’formula’ language x ˜ 1
+# .. .. ..- attr(*, ".Environment")=<environment: 0x555f82bae2c8>
+# ..@ call : language flexmix(formula = x ˜ 1, k = k,
+# cluster = initial.cluster, model = lcmixed(continuous = continuous,
+# discrete| __truncated__
+# ..@ k : int 6
+
+# E.g., this is for component 5, variables 1-4,
+# just as illustration (the "[[1]]"
+# is required to find the parameters, but otherwise
+# doesn’t mean anything)
+veronicabernm$flexout[[6]]@components[[5]][[1]]@parameters$pp
+# [[1]]
+# [1] 1 0
+#
+# [[2]]
+# [1] 0.03125 0.96875
+#
+# [[3]]
+# [1] 1 0
+#
+# [[4]]
+# [1] 1 0
+# etc.
+```
+
+#### Clustering heatmap 
+Slide 288 (plot 289) 
+Needed: veronicam, veronicabernm 
+```{r}
+vveronica <- dist(t(veronicam),method="binary")
+varclust <- hclust(vveronica,method="average")
+# heatmap, rows ordered by clusters,
+# columns by earlier variable clustering
+heatmap(veronicam[order(veronicabernm$flexout[[6]]@cluster),],
+        Rowv=NA,Colv=as.dendrogram(varclust),
+        RowSideColors=palette()[veronicabernm$flexout[[6]]@cluster][order(veronicabernm$flexout[[6]]@cluster)],
+        col=c(0,1),scale="none")
+```
+
+# Functional data 
+## Introduction 
+### Preliminary + plot of data 
+Slide 305 
+Needed: "covid2021.dat"
+```{r}
+library(fda) # Functional data analysis
+covid21 <- read.table("data/covid2021.dat")
+covid21v <- as.matrix(covid21[,5:559])
+# Raw data plot:
+plot(1:555,covid21v[1,],type="l",ylim=c(0,25),ylab="New cases over one week per 1000 inhabitants",
+     xlab="Day (1 April 2020-7 October 2021)",
+     main="Covid weekly new cases for 179 countries")
+for(i in 2:179) points(1:555,covid21v[i,],type="l")
+# Single country
+i <- 79 # Italy (can print covid21[,1] to find numbers for countries)
+i <- 69 # Haiti
+plot(1:555,covid21v[i,],cex=0.5,ylab="New cases over one week per 1000 inhabitants",
+     xlab="Day (1 April 2020-7 October 2021)",
+     main=covid21[i,1])
+```
+
+### B-spline basis 
+Slide 306 (plots 299, 300, 302, 303 and 304)
+Needed: covid21v
+```{r}
+# Constructing B-spline basis
+bbasis10 <- create.bspline.basis(c(1,555),nbasis=10) # with p=10
+# Splines approximating data as linear combinations of B-spline basis
+fdcovid10 <- Data2fd(1:555,y=t(as.matrix(covid21v)),basisobj=bbasis10)
+bbasis <- create.bspline.basis(c(1,555),nbasis=100) # same with p=100
+fdcovid <- Data2fd(1:555,y=t(as.matrix(covid21v)),basisobj=bbasis)
+# Plot basis
+plot(bbasis10)
+plot(bbasis)
+# Smooth splines for data with smooth mean function:
+plot(fdcovid)
+mcovid <- mean.fd(fdcovid)
+lines(mcovid,col=2,lwd=5)
+# Show smooth fit of individual countries
+plotfit.fd(t(covid21v),1:555,fdcovid10,index=79,cex.pch=0.5)
+plotfit.fd(t(covid21v),1:555,fdcovid10,index=69,cex.pch=0.5)
+plotfit.fd(t(covid21v),1:555,fdcovid,index=79,cex.pch=0.5)
+plotfit.fd(t(covid21v),1:555,fdcovid,index=69,cex.pch=0.5)
+```
+
+## Functional PCA 
+### PCA scores and scores for continents 
+Slide 311 (plots 312 and 313) 
+Needed: fdcovid, covid21 
+```{r}
+covidpca <- pca.fd(fdcovid, nharm = 5)
+plot(covidpca$harmonics) # PCs phi_k
+covidpca$varprop # Percentage of variance
+# [1] 0.40871917 0.18555649 0.11717077 0.05581147 0.04606967
+cumsum(covidpca$varprop) # Cumulative percentage of variance
+# [1] 0.4087192 0.5942757 0.7114464 0.7672579 0.8133276
+ncontinent <- as.numeric(as.factor(covid21$continent))
+levels(as.factor(covid21$continent))
+#[1] "Africa" "Asia" "Australia"
+# "Central America"
+#[5] "Europe" "North America" "South America"
+pairs(covidpca$scores,col=ncontinent,pch=clusym[ncontinent])
+# PCA scores
+```
+
+### Approximations via PCA projections 
+Slide 315 
+Needed: covidpca, mcovid 
+```{r}
+# Create functional data object of PCA approximations
+covidpcaapprox <- covidpca$harmonics
+i <- 1
+pcacoefi <- covidpca$harmonics$coefs %*% covidpca$scores[i,]+mcovid$coefs
+covidpcaapprox$coefs <- pcacoefi
+for (i in 2:179){
+pcacoefi <- covidpca$harmonics$coefs %*% covidpca$scores[i,]+mcovid$coefs
+covidpcaapprox$coefs <- cbind(covidpcaapprox$coefs, pcacoefi)
+}
+dimnames(covidpcaapprox$coefs)[[2]] <- covid21[,1]
+plotfit.fd(t(covid21v),1:555,covidpcaapprox,index=79,cex.pch=0.5)
+plotfit.fd(t(covid21v),1:555,covidpcaapprox,index=69,cex.pch=0.5)
+plotfit.fd(t(covid21v),1:555,covidpcaapprox,index=164,cex.pch=0.5)
+```
+
+## A mixture-based method for functional clustering 
+### Overview models 
+Slide 320 
+Needed: 
+```{r}
+femmodels <- c("DkBk", "DkB", "DBk","DB", "AkjBk",
+"AkjB", "AkBk", "AkB", "AjBk", "AjB", "ABk","AB")
+# E.g., "AkBk" has Sigma_k spherical but can vary between clusters,
+# beta_k can vary between clusters.
+# Default model "AkjBk" assumes Sigma_k diagonal,
+# Sigma_k and beta_k can vary between clusters.
+# funFEM help page claims that model="all" will compare all by BIC and
+# find the best, but this currently doesn’t seem to work.
+```
+
+### 
+Slide 324 and 325 (plot 326)
+Needed: fdcovid 
+```{r}
+library(funFEM)
+# The following (using default model "AkjBk") does not work very well:
+covidcluster <- funFEM(fdcovid,K=2:10)
+# Shows errors, not all models can be fitted (degenerating likelihood).
+# We still get a final result, but only K=2 was fitted without error.
+# Can’t fit K=1.
+# Try out all models and find the best.
+# Unfortunately just submitting model="all" to funFEM doesn’t work
+# as it should as of funFEM Version 1.2.
+set.seed(1234567)
+femmodels <- c("DkBk", "DkB", "DBk", "DB", "AkjBk", "AkjB", "AkB", "AkBk", "AjBk", "AjB", "ABk", "AB")
+nmodels <- length(femmodels)
+femresults <- list() # Save output for all models in femmodels
+bestk <- bestbic <- numeric(0)
+# bestk: vector of best K for each model.
+# bestbic: Best BIC value for each model.
+K=2:10 # Numbers of clusters K to try out.
+fembic <- matrix(NA,nrow=nmodels,ncol=max(K))
+# fembic will hold all BIC values for models (rows) and K (columns);
+# NA for those that cannot be fitted.
+for (i in 1:nmodels){ # This takes a long time!!
+    print(femmodels[i])
+    femresults[[i]] <- funFEM(fdcovid,model=femmodels[i],K=K)
+    fembic[i,K] <- femresults[[i]]$allCriterions$bic
+    bestk[i] <- which(fembic[i,]==max(fembic[i,K],na.rm=TRUE))
+    bestbic[i] <- max(fembic[i,K],na.rm=TRUE)
+}
+besti <- which(bestbic==max(bestbic,na.rm=TRUE))
+
+besti <- which(bestbic==max(bestbic,na.rm=TRUE)) # Best model
+besti
+# [1] 11
+femmodels[besti] # Sigma_k spherical and equal, beta_k can vary with k.
+# [1] "ABk"
+bestk # K=8 optimal for model 11 "ABk"
+# [1] 2 2 2 3 2 2 2 2 7 7 8 10
+# Can reproduce results faster (up to random initialisation):
+# femresult11 <- funFEM(fdcovid,model="ABk",K=8)
+femresult11 <- femresults[[11]]
+# Plot BIC values for all models and K:
+i <- 1
+plot(1:max(K),fembic[i,],col=i,pch=i,ylim=c(min(fembic,na.rm=TRUE),max(fembic,na.rm=TRUE)),type="n")
+for(i in 1:nmodels) text(1:max(K),fembic[i,],femmodels[i],col=i)
+```
+
+### Clustering results 
+Slide 327 (plot 328)
+Needed: femresults11, covid21 
+```{r}
+# Clustering is in cls component of output.
+table(femresult11$cls,covid21$continent)
+# Africa Asia Australia Central America Europe North America South America
+# 1 0 3 0 1 23 1 0
+# 2 11 15 1 6 2 0 2
+# 3 1 5 1 3 6 0 2
+# 4 32 10 1 2 0 0 0
+# 5 6 9 0 2 7 1 7
+# 6 1 1 0 0 0 0 0
+# 7 0 0 0 0 6 0 0
+# 8 0 4 0 6 0 0 1
+adjustedRandIndex(femresult11$cls,covid21$continent)
+# [1] 0.2038502
+library(fpc)
+plot(covid21[,4:3],col=femresult11$cls,pch=clusym[femresult11$cls])
+# Plot clusters against latitude and longitude
+# This prints out the countries in the clusters.
+for(i in 1:femresult11$K){
+    print(i)
+    print(covid21[femresult11$cls==i,1]) 
+}
+```
+
+###  Visualize cluster separation 
+Slide 329 (plots 330 and 331)
+Needed: covidpca, femresult11, fdcovid 
+```{r}
+# Clusters on principal components
+pairs(covidpca$scores,col=femresult11$cls,pch=19)
+# Visualisation of discriminative subspace U,
+# projection of observations on U-space:
+fdproj <- t(fdcovid$coefs) %*% femresult11$U
+pairs(fdproj,col=femresult11$cls,pch=19)
+plot(fdproj,col=femresult11$cls,pch=19,xlab="DC 1",ylab="DC 2")
+# femresult11$P has all the probabilities p_ik for the objects
+# to belong to the clusters. Here all these are larger than 0.992
+# or smaller than 0.008, so all points are very confidently classified.
+# Although this is probably correctly computed, I think that
+# this is overconfident, due to large degrees of freedom for
+# finding the optimally discriminating subspace. 
+```
+
+### Plot curves with clusters 
+Slide 332 (plot 333, 334 and 335)   
+Needed: covid21v, femresult11, fdcovid 
+```{r}
+# Plot the curves and clusters
+plot(1:555,covid21v[1,],type="l",ylim=c(0,25),ylab="New cases over one week per 1000 inhabitants",
+     xlab="Day (1 April 2020-7 October 2021)",lwd=1.5,col=femresult11$cls[1])
+for(i in 2:179) points(1:555,covid21v[i,],type="l",col=femresult11$cls[i],lwd=1.5)
+# Plot the cluster mean curves
+clmeans <- fdcovid; clmeans$coefs <- t(femresult11$prms$my)
+plot(clmeans,lwd=3) # col doesn’t seem to work here, neither lwd
+legend(100,10,legend=1:8,col=c(1:6,1:2),lty=c(1:5,1:3))
+# Plot individual clusters and mean curves
+par(ask=TRUE)
+for (k in 1:femresult11$K){
+    plot(1:555,covid21v[1,],type="l",ylim=c(0,25),
+    ylab="New cases over one week per 1000 inhabitants",
+    xlab="Day (1 April 2020-7 October 2021)",col=as.integer(femresult11$cls[1]==k))
+    for(i in 2:179)
+    points(1:555,covid21v[i,],type="l",col=as.integer(femresult11$cls[i]==k))
+    meank <- colMeans(covid21v[femresult11$cls==k,])
+    points(1:555,meank,type="l",lwd=5,col=2)
+}
+par(ask=FALSE)
+```
+
+# Robust Statistics 
+## Introduction 
+### Outlier example 
+Slides 4, 5, 6
+Needed: Dortmund_msbd.dat 
+```{r}
+dortmund <- read.table("data/Dortmund_msbd.dat",header=TRUE,row.names=1)
+str(dortmund)
+# ’data.frame’: 170 obs. of 7 variables:
+# $ unemployed : num 1.688 1.065 1.134 1.045 0.644 ...
+# $ buildings : num 1.375 0.823 1.448 1.083 1.267 ...
+# $ birthdeath : num -0.0187 -0.8871 -0.0697 -0.2197 -0.0973 ...
+# $ cars : num 9.21 11.55 6.82 7.9 5.29 ...
+# $ households : int 160 62 201 132 514 203 410 318 635 190 ...
+# $ social_insurance: num 6.14 3.5 6.52 4.83 4.94 ...
+# $ benefits : num 1.556 1.065 0.687 1.303 0.307 ...
+
+mean(dortmund$birthdeath)
+# [1] -0.2316692
+sum(dortmund$birthdeath>-0.2317)
+# [1] 165
+
+boxplot(dortmund$birthdeath,main="dortmund$birthdeath")
+boxplot(dortmund$birthdeath,main="dortmund$birthdeath",ylim=c(-0.9,0.135))
+abline(mean(dortmund$birthdeath),0,col=2) 
+
+mean(dortmund$birthdeath)
+# [1] -0.2316692
+median(dortmund$birthdeath)
+# [1] -0.01918741
+which.min(dortmund$birthdeath)
+# [1] 133 # Outlier is "Rombergpark", a park district with 4 households and a clinic!
+mean(dortmund$birthdeath[-133])
+# [1] -0.03481514
+```
+
+## Robust scale estimators 
+### Example 
+Slide 34 
+Needed: dortmund 
+```{r}
+mean(dortmund$birthdeath)
+# [1] -0.2316692
+median(dortmund$birthdeath)
+# [1] -0.01918741
+sd(dortmund$birthdeath)
+# [1] 2.568608
+mad(dortmund$birthdeath, constant = 1.4826) # constant = 1.4826 is the default.
+# [1] 0.04708085
+library(robustbase)
+huberM(dortmund$birthdeath,k=1.5) # k=1.5 is default; ca. 95% efficiency in normal model
+# $mu
+# [1] -0.02259647
+# $s
+# [1] 0.04708085 # Uses the MAD by default and gives it out.
+# $it
+# [1] 8 # Number of iterations of algorithm
+# $SE
+# [1] NA # If se=TRUE, huberM estimates its own standard error,
+# can be used for tests and confidence intervals
+```
+
+### MCD 
+Slides 40, 41, 42, 44 and 45 (plot 43)
+Needed: dortmund 
+```{r}
+cd <- cov(dortmund)
+# covMcd function is in package robustbase.
+mcdd <- covMcd(dortmund)
+# h is specified through parameter alpha with default 0.5,
+# h is chosen so that h/n\approx alpha with automatic rounding.
+# BP is about equal to 1-alpha (equal for n to infiunemployed buildings birthdeath cars
+# 0.5596628 1.6569043 -0.2316692 4.2945776
+# households social_insurance benefits
+# 363.1000000 3.0091202 0.4554566nity).
+mcdd75 <- covMcd(dortmund,alpha=0.75)
+colMeans(dortmund)
+# 
+mcdd$center
+# unemployed buildings birthdeath cars
+# 0.45806045 1.69674801 -0.02134013 3.97095994
+# households social_insurance benefits
+# 346.60344828 2.82726397 0.31878068
+mcdd75$center
+# unemployed buildings birthdeath cars
+# 0.50289076 1.65312025 -0.01893479 3.89633131
+# households social_insurance benefits
+# 362.81617647 2.80461850 0.39194712
+# MCD(alpha=0.75) is some kind of compromise between the classical mean/cov-matrix
+# and the MCD with alpha=0.5, but results are not always in between.
+
+# Estmated covariance matrix is in component cov:
+str(mcdd$cov)
+# num [1:7, 1:7] 0.03583 -0.05986 -0.00225 -0.09547 17.72687 ...
+# - attr(*, "dimnames")=List of 2
+# ..$ : chr [1:7] "unemployed" "buildings" "birthdeath" "cars" ...
+# ..$ : chr [1:7] "unemployed" "buildings" "birthdeath" "cars" ...
+# The covMcd output also has components raw.cov and raw.center.
+# These give the MCD how it was defined above, whereas cov and center
+# give somewhat improved versions with better efficiency but same robustness.
+# These are really not very different here:
+str(mcdd$raw.cov)
+# num [1:7, 1:7] 0.03162 -0.07117 -0.00195 -0.12078 18.29471 ...
+# - attr(*, "dimnames")=List of 2
+# ..$ : chr [1:7] "unemployed" "buildings" "birthdeath" "cars" ...
+# ..$ : chr [1:7] "unemployed" "buildings" "birthdeath" "cars" ...
+mcdd$raw.center
+# unemployed buildings birthdeath cars
+# 0.44453445 1.71049846 -0.02140164 3.99712387
+# households social_insurance benefits
+# 353.38202247 2.84980928 0.29372514
+mcdd$center
+# unemployed buildings birthdeath cars
+# 0.45806045 1.69674801 -0.02134013 3.97095994
+# households social_insurance benefits
+# 346.60344828 2.82726397 0.31878068
+
+# Visualise differences on 2 variables:
+library(mixtools) # Used for showing the ellipses defined by the cov-matrices
+v1 <- 2 # Looking at variables 2 and 4.
+v2 <- 4
+plot(dortmund[,c(v1,v2)])
+ellipse(colMeans(dortmund[,c(v1,v2)]),cd[c(v1,v2),c(v1,v2)],alpha=0.01)
+# alpha=0.01 here means that if data are normally distributed, 99% are expected
+# to be inside the ellipse.
+ellipse(mcdd$center[c(v1,v2)],mcdd$cov[c(v1,v2),c(v1,v2)],col=2,alpha=0.01)
+ellipse(mcdd75$center[c(v1,v2)],mcdd75$cov[c(v1,v2),c(v1,v2)],col=4,alpha=0.01)
+text(3,10.5,"standard cov")
+text(4.2,7.5,"MCD h/n=0.75",col=4)
+text(3.7,6,"MCD h/n=0.5",col=2)
+cor(dortmund[,v1],dortmund[,v2])
+# [1] 0.6477843
+# The following computes "robust correlation" for cov-entries:
+mcdd$cov[v1,v2]/sqrt(mcdd$cov[v1,v1]*mcdd$cov[v2,v2])
+# [1] 0.8747173
+mcdd75$cov[v1,v2]/sqrt(mcdd75$cov[v1,v1]*mcdd75$cov[v2,v2])
+# [1] 0.8840861
+
+v1 <- 3
+v2 <- 7
+plot(dortmund[,c(v1,v2)])
+ellipse(colMeans(dortmund[,c(v1,v2)]),cd[c(v1,v2),c(v1,v2)],alpha=0.01)
+ellipse(mcdd$center[c(v1,v2)],mcdd$cov[c(v1,v2),c(v1,v2)],col=2,alpha=0.01)
+ellipse(mcdd75$center[c(v1,v2)],mcdd75$cov[c(v1,v2),c(v1,v2)],col=4,alpha=0.01)
+text(-12,1,"standard cov")
+text(-5,1.3,"MCD h/n=0.75",col=4)
+text(-5,0.5,"MCD h/n=0.5",col=2)
+cov(dortmund[,c(v1,v2)])
+mcdd$cov[c(v1,v2),c(v1,v2)]
+mcdd75$cov[c(v1,v2),c(v1,v2)]
+cov(dortmund[,c(v1,v2)])
+# birthdeath benefits
+# birthdeath 6.5977450 -0.2056158
+# benefits -0.2056158 0.1520452
+mcdd$cov[c(v1,v2),c(v1,v2)]
+# birthdeath benefits
+# birthdeath 0.003033218 -0.002274133
+# benefits -0.002274133 0.069849984
+mcdd75$cov[c(v1,v2),c(v1,v2)]
+# birthdeath benefits
+# birthdeath 0.002990605 0.002533904
+# benefits 0.002533904 0.129704708
+
+v1 <- 1
+v2 <- 6
+plot(dortmund[,c(v1,v2)])
+ellipse(colMeans(dortmund[,c(v1,v2)]),cd[c(v1,v2),c(v1,v2)],alpha=0.01)
+ellipse(mcdd$center[c(v1,v2)],mcdd$cov[c(v1,v2),c(v1,v2)],col=2,alpha=0.01)
+ellipse(mcdd75$center[c(v1,v2)],mcdd75$cov[c(v1,v2),c(v1,v2)],col=4,alpha=0.01)
+text(1.3,5,"standard cov")
+text(1.3,3.5,"MCD h/n=0.75",col=4)
+text(0.55,1.7,"MCD h/n=0.5",col=2)
+cov(dortmund[,c(v1,v2)])
+mcdd$cov[c(v1,v2),c(v1,v2)]
+mcdd75$cov[c(v1,v2),c(v1,v2)]
+cov(dortmund[,c(v1,v2)])
+# unemployed social_insurance
+# unemployed 0.07188192 0.04501998
+# social_insurance 0.04501998 0.62228084
+mcdd$cov[c(v1,v2),c(v1,v2)]
+# unemployed social_insurance
+# unemployed 0.035830520 0.005097865
+# social_insurance 0.005097865 0.308213692
+mcdd75$cov[c(v1,v2),c(v1,v2)]
+# unemployed social_insurance
+# unemployed 0.05527552 -0.01177858
+# social_insurance -0.01177858 0.30552307
+```
+
+### Outlier identification 
+Slides 47 and 49 (plots 48 and 50) 
+Needed: mcdd, dortmund
+```{r}
+# library robustbase has a plot.mcd function and one could
+# use plot(mcdd) for outlier diagnostic plots, but this has some problems
+# - need to add tol=1e-20 because otherwise gives an error.
+# Also uses 0.975 quantile, which can’t be changed and I prefer 0.99.
+# So I use my own code.
+plot(1:170,sqrt(mcdd$mah),type="n",xlab="Observation",
+ylab="Robust Mahalanobis distance")
+text(1:170,sqrt(mcdd$mah),rownames(dortmund),cex=0.7)
+abline(sqrt(qchisq(0.99,7)),0,col=2)
+# Should look at smaller values to see more precisely what’s going on:
+plot(1:170,sqrt(mcdd$mah),type="n",ylim=c(0,30),xlab="Observation",
+ylab="Robust Mahalanobis distance")
+text(1:170,sqrt(mcdd$mah),rownames(dortmund),cex=0.7)
+abline(sqrt(qchisq(0.99,7)),0,col=2)
+
+# Compare with Mahalanobis distances based on mean and sample cov-matrix
+plot(sqrt(mahalanobis(dortmund,colMeans(dortmund),cd)),sqrt(mcdd$mah),type="n",
+xlab="Standard Mahalanobis distance",
+ylab="Robust Mahalanobis distance")
+text(sqrt(mahalanobis(dortmund,colMeans(dortmund),cd)),sqrt(mcdd$mah),
+rownames(dortmund),cex=0.7)
+abline(sqrt(qchisq(0.99,7)),0,col=2)
+abline(v=sqrt(qchisq(0.99,7)),col=2)
+plot(sqrt(mahalanobis(dortmund,colMeans(dortmund),cd)),sqrt(mcdd$mah),type="n",
+xlim=c(0,10),ylim=c(0,30),xlab="Standard Mahalanobis distance",
+ylab="Robust Mahalanobis distance")
+text(sqrt(mahalanobis(dortmund,colMeans(dortmund),cd)),sqrt(mcdd$mah),
+rownames(dortmund),cex=0.7)
+abline(sqrt(qchisq(0.99,7)),0,col=2)
+abline(v=sqrt(qchisq(0.99,7)),col=2)
+# Compare with alpha=0.75
+plot(sqrt(mcdd75$mah),sqrt(mcdd$mah),xlim=c(0,30),ylim=c(0,30),
+xlab="Robust Mahalanobis distance (alpha=0.75)",
+ylab="Robust Mahalanobis distance (alpha=0.5)")
+abline(sqrt(qchisq(0.99,7)),0,col=2)
+abline(v=sqrt(qchisq(0.99,7)),col=2)
+```
+
+## Outliers in linear regression
+### Without outlier 
+Slide 58 (plot 59)
+Needed: 
+```{r}
+set.seed(3355111)
+x1 <- runif(100)
+x2 <- x1+runif(100,-0.3,0.3)
+x3 <- -x1+rnorm(100,sd=0.5)
+y <- 1*x1-1*x2+3*x3+rnorm(100,sd=0.5)
+regdata1 <- as.data.frame(cbind(y,x1,x2,x3))
+pairs(regdata1)
+lmrd1 <- lm(y~x1+x2+x3,data=regdata1)
+summary(lmrd1)
+# Coefficients:
+# Estimate Std. Error t value Pr(>|t|)
+# (Intercept) 0.06667 0.10299 0.647 0.5190
+# x1 0.45713 0.31581 1.447 0.1510
+# x2 -0.65381 0.27941 -2.340 0.0214 *
+# x3 2.90865 0.10021 29.026 <2e-16 ***
+# ---
+# Signif. codes: 0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# Residual standard error: 0.5115 on 96 degrees of freedom
+# Multiple R-squared: 0.9201,Adjusted R-squared: 0.9176
+# F-statistic: 368.7 on 3 and 96 DF, p-value: < 2.2e-16
+par(mfrow=c(2,2))
+plot(lmrd1)
+```
+
+### Regression outlier 
+Slide 60 (plot 61)
+```{r}
+## Reminder: y <- 1*x1-1*x2+3*x3+rnorm(100,sd=0.5)
+regdata2 <- rbind(regdata1,c(-6,0.05,-0.1,0.9))
+pairs(regdata2)
+lmrd2 <- lm(y~x1+x2+x3,data=regdata2)
+summary(lmrd2)
+# Coefficients:
+# Estimate Std. Error t value Pr(>|t|)
+# (Intercept) -0.2780 0.1961 -1.418 0.160
+# x1 0.1777 0.6132 0.290 0.773
+# x2 -0.1944 0.5406 -0.360 0.720
+# x3 2.5858 0.1911 13.532 <2e-16 ***
+# ---
+# Signif. codes: 0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# Residual standard error: 0.9947 on 97 degrees of freedom
+# Multiple R-squared: 0.7121,Adjusted R-squared: 0.7032
+# F-statistic: 79.98 on 3 and 97 DF, p-value: < 2.2e-16
+par(mfrow=c(2,2))
+plot(lmrd2)
+```
+
+### Bad leverage point 
+Slide 62 (plot 63) 
+Needed: regdata1 
+```{r}
+## Reminder: y <- 1*x1-1*x2+3*x3+rnorm(100,sd=0.5)
+regdata3 <- rbind(regdata1,c(-4,20,-0.1,0.9))
+pairs(regdata3)
+lmrd3 <- lm(y~x1+x2+x3,data=regdata3)
+summary(lmrd3)
+# Coefficients:
+# Estimate Std. Error t value Pr(>|t|)
+# (Intercept) 0.15230 0.09974 1.527 0.130
+# x1 -0.33030 0.02718 -12.154 <2e-16 ***
+# x2 -0.10042 0.17533 -0.573 0.568
+# x3 2.82983 0.09768 28.972 <2e-16 ***
+# ---
+# Signif. codes: 0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# Residual standard error: 0.5252 on 97 degrees of freedom
+# Multiple R-squared: 0.9164,Adjusted R-squared: 0.9138
+# F-statistic: 354.4 on 3 and 97 DF, p-value: < 2.2e-16
+par(mfrow=c(2,2))
+plot(lmrd3)
+```
+
+### Good leverage point 
+Slide 64 (plot 65)
+Needed: regdata1
+
+```{r}
+## Reminder: y <- 1*x1-1*x2+3*x3+rnorm(100,sd=0.5)
+regdata4 <- rbind(regdata1,c(22,20,-0.1,0.9))
+pairs(regdata4)
+lmrd4 <- lm(y~x1+x2+x3,data=regdata4)
+summary(lmrd4)
+# Coefficients:
+# Estimate Std. Error t value Pr(>|t|)
+# (Intercept) 0.01221 0.09791 0.125 0.901
+# x1 0.95794 0.02668 35.908 < 2e-16 ***
+# x2 -1.00577 0.17210 -5.844 6.83e-08 ***
+# x3 2.95877 0.09588 30.859 < 2e-16 ***
+# ---
+# Signif. codes: 0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# Residual standard error: 0.5156 on 97 degrees of freedom
+# Multiple R-squared: 0.9703,Adjusted R-squared: 0.9694
+# F-statistic: 1056 on 3 and 97 DF, p-value: < 2.2e-16
+par(mfrow=c(2,2))
+plot(lmrd4)
+```
+
+### Example for masking
+Slide 66 (plot 67)
+Needed: 
+```{r}
+library(robustbase)
+data(starsCYG,package="robustbase")
+light.lm<-lm(log.light~log.Te, starsCYG)
+plot(starsCYG)
+abline(light.lm$coef[1],light.lm$coef[2])
+par(mfrow=c(2,2))
+plot(light.lm)
+```
+
+## Robust Regression estimators 
+Slide 84 (plots 85 and 86)
+Needed: regdata3 
+```{r}
+lm3mm <- lmrob(y~x1+x2+x3,data=regdata3) # MM-estimator
+par(mfrow=c(2,3))
+plot(lm3mm)
+plot(1:101,lm3mm$rweights)
+summary(lm3mm)
+# Coefficients:
+# Estimate Std. Error t value Pr(>|t|)
+# (Intercept) 0.06880 0.10222 0.673 0.5025
+# x1 0.50951 0.33895 1.503 0.1360
+# x2 -0.70645 0.29241 -2.416 0.0176 *
+# x3 2.91410 0.08549 34.086 <2e-16 ***
+# ---
+# Signif. codes: 0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# Robust residual standard error: 0.5483
+# Multiple R-squared: 0.9174,Adjusted R-squared: 0.9148
+# Convergence in 9 IRWLS iterations
+# Robustness weights:
+# observation 101 is an outlier with |weight| = 0 ( < 0.00099); (...)
+```
+
+## Robust Regression estimators L1
+Slide 88 (plots 89 and 90)
+Needed: regdata4
+```{r}
+lm4mm <- lmrob(y~x1+x2+x3,data=regdata4) # MM-estimator
+par(mfrow=c(2,3))
+plot(lm4mm)
+plot(1:101,lm4mm$rweights)
+summary(lm4mm)
+# Coefficients:
+# Estimate Std. Error t value Pr(>|t|)
+# (Intercept) 0.018933 0.095541 0.198 0.843
+# x1 0.958780 0.007824 122.540 < 2e-16 ***
+# x2 -1.027080 0.152414 -6.739 1.14e-09 ***
+# x3 2.953733 0.087655 33.697 < 2e-16 ***
+# ---
+# Signif. codes: 0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# Robust residual standard error: 0.5356
+# Multiple R-squared: 0.9709,Adjusted R-squared: 0.97
+# Convergence in 8 IRWLS iterations
+# Robustness weights:
+# 7 weights are ˜= 1. The remaining 94 ones are summarized as
+# Min. 1st Qu. Median Mean 3rd Qu. Max.
+# 0.4808 0.8940 0.9562 0.9179 0.9876 0.9990
+```
+
+### Final robust estimator 
+Slide 91 (plot 94)
+Needed: starsCYG
+```{r}
+light.mm<-lmrob(log.light~log.Te, starsCYG) # MM-estimator
+# 4 observations c(11,20,30,34) are outliers with |weight| = 0
+par(mfrow=c(2,3))
+plot(light.mm)
+plot(1:47,light.mm$rweights,xlab="Obs. number",ylab="Robustness weights")
+light.s<-lmrob(log.light~log.Te, method="S",starsCYG) # S-estimator
+# 7 observations c(7,9,11,18,20,30,34) are outliers with |weight| = 0
+```
+
+```{r}
+
+```
+
+
+
