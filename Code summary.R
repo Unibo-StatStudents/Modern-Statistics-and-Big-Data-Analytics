@@ -92,7 +92,7 @@ for (i in 1:572)                                              # Mahalanobis dist
 mahalanobis <- as.dist(mahalm)                                #
 jaccard <- dist(cateforical_data,method="binary") # jaccard distance
 simple_matching <- dist(categorical_data,method="manhattan")/583 # simple matching
-simple_matching <- sm(categoricaò_data) # simple matching
+simple_matching <- sm(categorical_data) # simple matching
 gower_dissimilarity <- daisy(mixed_type_data,c("euclidean", "manhattan", "gower"),
                              type=list(symm=4)) # gower dissimilarity
 # Dissimilarities will be computed between the rows of x. Columns of mode numeric 
