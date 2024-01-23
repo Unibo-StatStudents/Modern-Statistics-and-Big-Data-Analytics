@@ -1,0 +1,1336 @@
+---
+title: "Cheat Sheet"
+output: github_document
+author: "Sebastian Veuskens"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Preliminaries 
+## Load libraries 
+
+```{r}
+library(MASS)           # for geyser data
+library(flexclust)      # bundestag data 
+library(pdfCluster)     # oliveoil data 
+library(fpc)            # 
+library(sn)             # Skew-normal and skew-t distributions 
+library(cluster)        # Needed for gap statistic (clusGap), Gower (daisy) and PAM 
+library(smacof)         # MDS (Multi-dimensional scaling)
+library(mclust)         # ARI (Adjusted Rand Index), Gaussian Mixture Models 
+library(teigen)         # For t-distribution heavy-tailed Mixture Models 
+library(pracma)         # For K-means++ algorithm 
+library(mixsmsn)        # For Skew-Normal Mixture Models (smsn)
+library(robustbase)     # For huberM
+library(mixtools)       # For ellipse illustration 
+library(poLCA)          # For categorical data 
+library(fda)            # For functional data 
+library(funFEM)         # For FEM algorithm 
+library(nomclust)       # For simple matching 
+```
+
+## Load data 
+
+```{r}
+data(geyser) 
+p05 <- bundestag(2005) 
+data(oliveoil)
+olive <- oliveoil[,3:10]
+data(starsCYG,package="robustbase")
+data(election)
+election12 <- election[,1:12]
+electionwithna <- election12
+for (i in 1:12){
+    levels(electionwithna[,i]) <- c(levels(election12[,i]),"NA")
+    electionwithna[is.na(election12[,i]),i] <- "NA"
+}
+
+veronica <- read.table("data/veronica.dat")
+housing <- read.table("data/Boston.dat", header=TRUE)
+housing$rad <- as.factor(housing$rad)
+housing$tax <- as.ordered(as.factor(housing$tax)) 
+clusterdata1 <- read.table("data/clusterdata1.dat")
+clusterdata2 <- read.table("data/clusterdata2.dat")
+dortmund <- read.table("data/Dortmund_msbd.dat",header=TRUE,row.names=1)
+stars5000 <- read.table("data/stars5000.dat",header=TRUE)
+covid21 <- read.table("data/covid2021.dat")
+
+set.seed(3355111)
+x1 <- runif(100)
+x2 <- x1+runif(100,-0.3,0.3)
+x3 <- -x1+rnorm(100,sd=0.5)
+y <- 1*x1-1*x2+3*x3+rnorm(100,sd=0.5)
+regdata1 <- as.data.frame(cbind(y,x1,x2,x3))
+x1 <- runif(100)
+x2 <- x1+runif(100,-0.3,0.3)
+x3 <- -x1+rnorm(100,sd=0.5)
+y <- 1*x1-1*x2+3*x3+rt(100, df = 3)
+regdata2 <- as.data.frame(cbind(y,x1,x2,x3))
+```
+
+# Data exploration 
+
+## PCA 
+Principal component analysis finds the (orthogonal) directions in which the variance
+is higest within the data. 
+
+Scaling is important and will alter the results. 
+```{r}
+################
+#### Modify ####
+################
+data <- scale(olive) 
+clustering <- oliveoil[,2]
+################
+pr <- princomp(data)                                        # Create Principal component object
+
+#### Summaries #### 
+summary(pr)
+pr$sdev / sum(pr$sdev)                                      # Variance explained by Principal component
+cumsum(pr$sdev / sum(pr$sdev))                              # Cumulative variance explained up to each Principal component 
+
+#### Visualize components ####
+plot(pr, main = "Principal components")                     # Histogram of Principal components
+biplot(pr, cex=0.7)                                         # Display the variable parts for the first two Principal components
+
+#### Visualize clustering ####
+plot(pr$scores, col = clustering, pch = clusym[clustering]) # Plot clustering on first two components. Similar to MDS 
+```
+
+## MDS 
+Not a cluster analysis method, but useful for displaying multi-dimensional data. 
+We use *Ratio MDS* in this course. 
+
+Scaling is important and will alter the results. 
+```{r}
+################
+#### Modify ####
+################
+dist_matr <- as.matrix(dist(olive))
+################
+
+#### Compute MDS object ####
+mds_obj <- mds(dist_matr, ndim = 2) 
+
+#### Goodness of MDS ####
+mds_obj$stress                              # The lower the stress, the closer the distances are to the true distances 
+
+#### Visualize MDS ####
+plot(mds_obj$conf, asp = 1)
+plot(mds_obj$conf, type = "n", asp = 1)     # Make empty plot, asp means "aspect ratio" (correct distances)
+text(mds_obj$conf, labels = row(data))      # Add labels 
+```
+
+
+## Heatmap 
+
+```{r}
+################
+#### Modify ####
+################
+data <- scale(olive)
+################
+data <- as.matrix(data) 
+
+#### Heatmap of data ####
+heatmap(data, Rowv = NA, Colv = NA, col = grey(seq(1, 0, -0.01)))   # Binary display of data (like genes)
+
+#### Heatmap of covariance #### 
+heatmap(cov(data), scale = "none", col = cm.colors(20))             # Show correlations between variables 
+```
+
+## Functional data
+
+# Distance measures 
+
+## Overview 
+**Terminology:** 
+A *dissimilarity* is a measure that fulfills the following two properties:
+1. $d(x, y) \ge 0$
+2. $d(x, x) = 0$ 
+
+A *dissimilarity* is a *distance measure* when it additionally fulfills the third property:
+3. $d(x,z) < d(x, y) + d(y, z)$ 
+
+**Categorization**
+*Dissimilarities:* 
+- Jaccard (missing values only)
+- Simple Matching(missing values only)
+- Gower coefficient (missing values only)
+- Correlation 
+
+*Distances:*
+- Euclidean
+- Manhattan 
+- Minkowski (general form, including Euclidean and Manhattan)
+- Mahanalobis 
+
+## Continuous variables 
+Scaling is important and will alter the results, except for the Mahalanobis distance. 
+```{r}
+################
+#### Modify ####
+################
+data <- scale(olive)
+################
+
+#### Euclidean ####
+eucl <- dist(data, method = "euclidean")
+eucl_m <- as.matrix(eucl) 
+
+#### Manhattan ####
+manh <- dist(data, method = "manhattan") 
+manh_m <- as.matrix(manh)
+
+#### Mahanalobis ####
+maha_m <- matrix(0, ncol = nrow(data), nrow = nrow(data))
+data_cov <- cov(data)
+for (i in 1:nrow(data)) {
+    maha_m[i,] = mahalanobis(data, as.numeric(data[i,]), data_cov)
+}
+maha <- as.dist(maha_m)
+
+#### Correlation dissimilarity ####
+correl <- cor(data)
+## Two options as what great negative correlation indicates:
+# Not similar observations 
+cor_dist <- 0.5 - correl / 2
+# Similar observations 
+cor_distsim <- 1 - abs(correl)
+```
+
+## Binary and categorical variables 
+
+```{r}
+################
+#### Modify ####
+################
+data <- housing  
+################
+
+#### Simple matching ####
+simp_m <- sm(data)
+
+#### Jaccard ####
+jacc <- dist(data, method = "binary")
+
+#### Gower #### 
+# The keyword "type" determines which metric to use for each variable. Defaults are:
+# Binary and factor variables   -> simple matching 
+# Ordered factors               -> Replaced with 1, 2, 3,... and then treated as numerical 
+# For "type" = asymm            -> Jaccard (binary variables only)
+# For "type" = symm             -> Simple matching (binary variables only) -> Default 
+# For "type" = factor (nominal) -> Same as "symm" except when missing values are present 
+gow <- daisy(data, metric = "gower", type = list(symm = 4, factor = c(9, 10))) 
+```
+
+# Clustering methods 
+
+Needed for determination of number of clusters. 
+```{r}
+################
+#### Modify ####
+################
+data <- scale(olive)
+dist_obj <- dist(data)                  # Needed for silhouette, default same as dist
+max_nc <- 15
+################
+
+clus <- list() 
+sil <- list() 
+asw <- NA 
+```
+
+## Partitioning 
+
+### K-means 
+
+Partitioning method that is based on euclidean data only.
+*Squared Euclidean distance* is used for the objective function (not for distance matrix!). 
+
+Cluster concept: homogeneous, spherical (round)
+
+Scaling is important and will alter the results. 
+```{r}
+################
+#### Modify ####
+################
+data <- scale(olive)
+max_nc <- 15 
+################
+set.seed(12345) 
+
+clus <- list() 
+sil <- list() 
+asw <- NA 
+
+for (k in 2:max_nc) {
+    clus[[k]] <- kmeans(data, k, iter.max = 100, nstart = 100)
+    sil[[k]] <- silhouette(clus[[k]]$cluster, dist = dist_obj)
+    asw[k] <- summary(sil[[k]])$avg.width
+}
+
+plot(1:max_nc, asw, type = "l", xlab = "Number of clusters", ylab = "ASW")
+# asw[2] = 0 
+nc <- which.max(asw)
+nc 
+plot(sil[[nc]])
+
+km <- kmeans(data, centers = nc, nstart = 100, iter.max = 100)  # Cluster the data 
+
+#### Results ####
+clustering <- km$cluster 
+
+#### Examine clustering #### 
+table(clustering)
+mds_obj <- mds(dist(data))
+plot(mds_obj$conf, asp = 1, col = clustering, pch = clusym[clustering])
+pairs(data, col = clustering)
+```
+
+### PAM 
+
+Partitioning method based on dissimilarity measure. 
+It minimizes the sum of pairwise dissimilarities and for this finds an 
+optimal solution with manhattan distance. 
+
+Cluster concept: homogeneous 
+```{r}
+################
+#### Modify ####
+################
+data <- scale(olive)
+dist_obj <- dist(data)
+max_nc <- 15 
+################
+set.seed(12345)
+
+clus <- list() 
+sil <- list() 
+asw <- NA 
+
+for (k in 2:max_nc) {
+    clus[[k]] <- pam(data, k)
+    # clus[[k]] <- pam(dist_obj, k)
+    sil[[k]] <- silhouette(clus[[k]]$cluster, dist = dist_obj)
+    asw[k] <- summary(sil[[k]])$avg.width
+}
+
+plot(1:max_nc, asw, type = "l", xlab = "Number of clusters", ylab = "ASW")
+# asw[2] = 0 
+nc <- which.max(asw)
+nc 
+plot(sil[[nc]])
+
+pm <- pam(data, nc)
+# pm <- pam(dist_obj, nc)
+
+#### Results ####
+clustering <- pm$cluster 
+
+#### Examine clustering #### 
+table(clustering)
+mds_obj <- mds(dist_obj)
+plot(mds_obj$conf, asp = 1, col = clustering, pch = clusym[clustering])
+pairs(data, col = clustering)
+```
+
+## Hierarchical 
+
+Cluster concepts:
+- Single linkage -> *separated* (often not preferred) 
+- Average linkage -> *homogeneous, separated*
+- Complete linkage -> *homogeneous* 
+- Ward -> *homogeneous, spherical*
+
+```{r}
+################
+#### Modify ####
+################
+dist_obj <- dist(scale(geyser)) 
+method = "average"                              # Alternatives: "single", "complete", "ward.D2"
+max_nc = 15 
+################
+set.seed(12345)
+
+clus <- list() 
+sil <- list() 
+asw <- NA 
+
+#### Compute clustering #### 
+hier_clus <- hclust(dist_obj, method = method) 
+
+#### Visualize Dendrogram #### 
+# Use this to choose the numbers of clusters (additional to ASW)
+plot(hier_clus) 
+
+for (k in 2:max_nc) {
+    clus[[k]] <- cutree(hier_clus, k)
+    sil[[k]] <- silhouette(clus[[k]], dist = dist_obj)
+    asw[k] <- summary(sil[[k]])$avg.width  
+}
+
+plot(1:max_nc, asw, type = "l", xlab = "Number of clusters", ylab = "ASW")
+# asw[2] = 0 
+nc <- which.max(asw)
+nc 
+plot(sil[[nc]])
+
+#### Results #### 
+clustering <- cutree(hier_clus, nc)
+
+#### Examine clustering #### 
+table(clustering)
+mds_obj <- mds(dist_obj)
+plot(mds_obj$conf, col = clustering, pch = clusym[clustering])
+pairs(data, col = clustering)
+```
+
+
+# Number of clusters
+
+## Overview 
+Visualizations give a great hint in which number of clusters is appropriate. 
+This includes the MDS plot as well as Dendrogram and other suitable plots. 
+Use the following methods to determine the number of clusters:
+
+**K-means**
+- GAP 
+- ASW 
+
+**PAM**
+- ASW 
+
+**Hierarchical**
+- ASW 
+- GAP (for Ward only)
+
+**Mixture model**
+- BIC 
+
+**funFEM**
+- BIC 
+
+## ASW 
+
+The **same distance matrix** should be used. Otherwise, silhouettes are not comparable! 
+
+```{r}
+################
+#### Modify ####
+################
+data <- scale(olive)
+dist_obj <- dist(data)                  # Needed for silhouette, default same as dist
+max_nc <- 15
+################
+
+clus <- list() 
+sil <- list() 
+asw <- NA 
+```
+
+### PAM and K-Means 
+
+```{r}
+for (k in 2:max_nc) {
+    #### K-means ####
+    clus[[k]] <- kmeans(data, k, iter.max = 100, nstart = 100)
+    #### PAM #### 
+    # clus[[k]] <- pam(data, k)
+    sil[[k]] <- silhouette(clus[[k]]$cluster, dist = dist_obj)
+    asw[k] <- summary(sil[[k]])$avg.width
+}
+
+plot(1:max_nc, asw, type = "l", xlab = "Number of clusters", ylab = "ASW")
+# asw[2] = 0 
+nc <- which.max(asw)
+plot(sil[[nc]])
+```
+
+### Hierarchical 
+```{r}
+################
+#### Modify ####
+################
+method = "average" 
+################
+
+hier_clus <- hclust(dist_obj, method = method)
+
+for (k in 2:max_nc) {
+    clus[[k]] <- cutree(hier_clus, k)
+    sil[[k]] <- silhouette(clus[[k]], dist = dist_obj)
+    asw[k] <- summary(sil[[k]])$avg.width  
+}
+
+plot(1:max_nc, asw, type = "l", xlab = "Number of clusters", ylab = "ASW")
+# asw[2] = 0 
+nc <- which.max(asw)
+plot(sil[[nc]])
+```
+
+## GAP 
+*Squared Euclidean distance* is used for computation. Also the 
+objective function of K-means is based on minimizing the *squared Euclidean distance*. 
+```{r}
+################
+#### Modify ####
+################
+data <- scale(geyser)
+max_nc <- 15
+clus_fun = kmeans 
+################
+
+#### Elbow plot ####
+# Choose k where there is a clear smaller decrease than before. (Looks like an elbow)
+# This is often not clearly defined 
+sk <- numeric(0) 
+for (k in 1:max_nc) {
+    sk[k] <- kmeans(data, k, nstart = 100)$tot.withinss
+}
+plot(1:max_nc, sk, xlab = "k", ylab = "S_k", type = "l")
+
+#### Gap statistic ####
+# This statistic is based on the logarithm of the within sum of squares 
+# "Gap" means here the gap between the expected and observed within sum of squares 
+
+# d.power = 2           indicates squared euclidean distances 
+# spaceH0 = "scaledPCA" indicates space for uniform sampling - alternative "original"
+# B = 50                indicates 50 simulations from uniform distribution 
+cg <- clusGap(data, clus_fun, K.max = max_nc, B = 50, d.power = 2, spaceH0 = "scaledPCA", nstart = 100)
+plot(cg)                                                            # Gap values 
+print(cg, method = "globalSEmax", SE.factor = 2)                    # All important values in table 
+plot(1:max_nc, exp(cg$Tab[,1]), xlab = "k", ylab = "S_k", type = "l")   # S_k values 
+
+#### Gapnc function ####
+# Automatically detects the optimal number of clusters, according to the Gap statistic 
+# It finds the GLOBAL optimum (one could also be interested in LOCAL optimum -> change "method" keyword)
+# Alternatives for "method": "firstmax", "globalmax", "firstSEmax"
+gapnc <- function(data,clus_fun=kmeans,
+                  K.max=10, B = 100, d.power = 2,
+                  spaceH0 ="scaledPCA",
+                  method ="globalSEmax", SE.factor = 2,...) {
+    gap1 <- clusGap(data, clus_fun, K.max, B, d.power, spaceH0, ...)
+    nc <- maxSE(gap1$Tab[,3], gap1$Tab[,4], method, SE.factor)  # Find optimal number of clusters
+    out <- list()
+    out$gapout <- gap1
+    out$nc <- nc
+    out$kmopt <- clus_fun(data,nc,...)                          # Re-run clus_fun with optimal nc 
+    out
+}
+gapnc_result <- gapnc(data, clus_fun = clus_fun, B = 50, K.max = max_nc)
+print(gapnc_result$nc)    
+plot(gapnc_result$gapout, main = "Gap values")                                          # Values of Gap statistic (expected log(S) - observed log(S))
+print(gapnc_result$gapout, method = "globalSEmax", SE.factor = 2)
+
+#### Results ####
+nc <- gapnc_result$nc 
+gap_clustering <- gapnc_result$kmopt$cluster
+```
+
+## BIC 
+BIC only gives a consistent estimator if the assumptions are exactly fulfilled.
+This is often not the case with real data. 
+Therefore, it tends to prefer more parameters, the more data is added. 
+
+# Visualize clusterings 
+
+## General 
+
+```{r}
+################
+#### Modify ####
+################
+data <- scale(olive)
+dist_obj <- dist(data)
+dist_matr <- as.matrix(dist_obj)
+clustering <- kmeans(olive, 3)$cluster                                                         # Number of clusters 
+hier_clus <- hclust(dist_obj, method = "average")
+################
+
+#### Pair plot ####
+# Look for well-seperated clusters 
+pairs(data, col = clustering)
+
+#### MDS ####
+mds_obj <- mds(dist_obj)
+plot(mds_obj$conf, col = clustering, pch = clusym[clustering])
+
+#### PCA #### 
+# Needs data and not only distance matrix like MDS 
+pr <- princomp(data)
+plot(pr$scores, col = clustering, pch = clusym[clustering])
+
+#### Heatmap ####
+# Include hierarchical clustering to order the observations and/or variables 
+heatmap(data, Rowv = hier_clus,
+        Colv = NA, col = cm.colors(200))                # Adjust Rowv and Colv with as.dendrogram(<hclust object>)
+```
+
+## Algorithm specific 
+
+### K-means 
+
+```{r}
+################
+#### Modify ####
+################
+data <- scale(olive)
+nc <- 3
+################
+km <- kmeans(data, nc)
+clustering <- km$cluster
+
+#### Visualize cluster means #### 
+# Only the first two variables are displayed here. Modify for more insights. 
+plot(data, col = clustering, pch = clusym[clustering])
+points(km$centers, pch = "M", cex = 2, col = 4)
+```
+
+### Mixture Models 
+
+# Clustering choice 
+## Compare clusterings 
+
+```{r}
+################
+#### Modify ####
+################
+clustering <- kmeans(olive, 3)$cluster  # The clustering proposed by our analysis or algorithm 
+category <- oliveoil[,1]                # The true category that should be clustered like 
+################
+
+#### Table overview #### 
+table(clustering, category)
+
+#### Adjusted Rand Index #### 
+adjustedRandIndex(clustering, category)
+```
+
+# Big data sets 
+
+## K-means 
+
+The algorithm **K-means++** picks starting points and thus does 
+not need *nstart = 100* or similar to perform well. 
+
+It picks initial centers where each center is an observation. 
+They are picked in an iterative manner, the probability 
+being proportional to the distance to the closest already picked center. 
+```{r}
+km_pp <- function(X, k) {
+    n <- nrow(X)
+    C <- numeric(k)
+    C[1] <- sample(1:n, 1)
+    for (i in 2:k) {
+        dm <- distmat(X, X[C, ])
+        pr <- apply(dm, 1, min); pr[C] <- 0
+        C[i] <- sample(1:n, 1, prob = pr)
+    }
+    kmeans(X, X[C, ])
+}
+```
+
+## Mixture Models
+
+EM-algorithm and hierarchical initialisation may be too slow. (Slide 247)
+
+1. Choose random subset (2000) -> run EM-algorithm 
+2. Start single EM-iteration on all data
+3. Take 1% with lowest densities as new cluster
+4. Start single EM-iteration on all data -> keep only if improved  
+
+*Alternative*
+1. Choose random subset (2000) -> run EM-algorithm 
+2. Extend fitted model to complete dataset 
+
+### Gaussian Mixture Model computation 
+
+```{r}
+################
+#### Modify ####
+################
+data <- stars5000
+sample_size <- 2000 
+max_nc = 10
+################
+sample_ind <- sample(1:5000, sample_size)
+sample_data <- data[sample_ind,]
+m_clus_sample <- Mclust(sample_data, G=1:max_nc)
+pred <- predict.Mclust(m_clus_sample, data[-sample_ind,])
+clustering <- numeric(5000)
+clustering[sample_ind] <- m_clus_sample$classification
+clustering[-sample_ind] <- pred$classification 
+str(clustering)
+table(clustering)
+```
+
+## MDS and PCA 
+
+If the number of observations $n$ is very big and the number of variables $p$ is small, then:
+1. Covariance matrix $\Sigma$ is a $p x p$ matrix (small) -> **PCA**
+2. Distance matrix is $n x n$ matrix (very big) -> **MDS**
+
+Thus, PCA might be computable fast while MDS takes very long for large $n$. 
+
+## Clustering statistics 
+
+```{r}
+################
+#### Modify ####
+################
+dist_obj <- dist(scale(olive))
+clustering <- kmeans(scale(olive), 3)$cluster  # The clustering proposed by our analysis or algorithm 
+alternative <- kmeans(scale(olive), 9)$cluster # The true category that should be clustered like 
+################
+set.seed(12345)
+
+#### Compute S (within sum of squares) #### 
+clus_stats <- cluster.stats(dist_obj, clustering) 
+clus_stats$within.cluster.ss 
+
+cat_stats <- cluster.stats(dist_obj, alternative)
+cat_stats$within.cluster.ss
+```
+
+
+# Full cycle Analysis
+## "Classical" models
+
+```{r}
+################
+#### Modify ####
+################
+data <- scale(olive)
+distance = "euclidean" 
+dist_obj = dist(data, method = distance)
+
+dist_obj <- dist(scale(olive))
+clustering <- kmeans(scale(olive), 3)$cluster  # The clustering proposed by our analysis or algorithm 
+alternative <- kmeans(scale(olive), 9)$cluster # The true category that should be clustered like 
+################
+```
+
+## Mixture Models 
+### Overview 
+**Scaling**
+Only *Non-unit shape* covariance matrices of the models are 
+invariant to scaling! -> In theory at least, in practice clear difference
+BIC is not scale invariant! 
+
+### Gaussian Mixture Models 
+#### Overview 
+**Model specification**
+The 3 letters refer to these 3 properties of the Covariance matrix:
+1. Volume ($\lambda$ -> geometric mean of eigenvalues)
+2. Shape ($A$ -> Diagonal matrix of scaled eigenvalues)
+3. Orientation ($D$ -> orthogonal matrix with scaled eigenvectors) 
+
+The related formula for the Covariance matrix is:
+
+$\Sigma = \lambda D A D^T$
+
+#### Computation 
+Gaussian Mixture Models are in general not scale invariant. Scaling will alter the results! 
+```{r}
+################
+#### Modify ####
+################
+data <- scale(olive) 
+max_nc <- 15
+dist_obj <- dist(data)
+category <- oliveoil$region
+################
+set.seed(12345)
+
+#### Compute clustering ####
+gaus_mm <- Mclust(data, G=1:max_nc)
+# gaus_mm <- Mclust(data, G=1:max_nc, modelNames = "VVE")
+
+#### Results ####
+## Display results
+# Best model
+# Large BIC is best!
+summary(gaus_mm)
+# Best 3 models (BIC)
+summary(gaus_mm$BIC) 
+
+## Store results 
+clustering <- gaus_mm$classification 
+table(clustering)
+nc <- summary(gaus_mm)$G
+nc 
+
+#### Clustering Evaluation
+## Diagnostic plot ##
+plot(gaus_mm, what="BIC")
+plot(gaus_mm, what="classification")
+plot(gaus_mm, what="uncertainty")
+plot(gaus_mm, what="density")
+
+## Model comparison ##
+
+# ARI
+adjustedRandIndex(clustering, category)
+# PCA and MDS 
+pr_mm <- princomp(data) 
+plot(pr_mm$scores, col = clustering, pch = clusym[clustering])
+mds_mm <- mds(as.matrix(dist_obj), ndim = 2)
+mds_mm$stress
+plot(mds_mm$conf, col = clustering, pch = clusym[clustering])
+pairs(data, col = clustering)
+
+#### Results #### 
+gaus_mm$classification 
+gaus_mm$parameters                          # Parameters for each cluster/model (like mean and Covariance matrices)
+gaus_mm$z                                   # Posterior probability matrix of observation i beloning to cluster k
+```
+
+### T-distribution models
+#### Overview 
+**Model specification**
+The 4 letters refer to these 3 properties of the Covariance matrix and the degrees of freedom:
+1. Volume 
+2. Shape 
+3. Orientation 
+4. Degrees of freedom 
+The possible model choices are 
+- U (unconstrained) 
+- C (constrained) 
+- I (unit matrix)
+
+**Degrees of freedom**
+Covariance matrix only exists if $\tau \ge 3$. 
+It equals to $\frac{\tau}{\tau - 2} \Sigma$. 
+
+#### Computation
+Heavy-tailed Mixture Models are not scale invariant. Scaling will alter the results! 
+```{r}
+################
+#### Modify ####
+################
+data <- scale(olive) 
+max_nc <- 15
+dist_obj <- dist(data)
+category <- oliveoil$region
+################
+set.seed(12345)
+
+#### Compute clustering ####
+# Scale data before 
+t_mm <- teigen(data, Gs = 1:max_nc, scale=TRUE)
+
+#### Results ####
+## Display results 
+# Large BIC is best! 
+summary(t_mm)
+t_mm$allbic
+str(t_mm)
+
+## Store results 
+clustering <- t_mm$classification 
+table(clustering)
+nc <- summary(t_mm)$bicgroups
+nc
+
+#### Clustering Evaluation
+## Diagnostic plot 
+# Displays only marginals, specify via xmarg and ymarg 
+plot(t_mm, xmarg = 1, ymarg = 2, what = "contour")
+plot(t_mm, xmarg = 2, ymarg = 1, what = "uncertainty") 
+
+## PCA and MDS 
+pr_t_mm <- princomp(data)
+plot(pr_t_mm$scores, col = clustering, pch = clusym[clustering])
+mds_t_mm <- mds(as.matrix(dist_obj), ndim = 2)
+mds_t_mm$stress
+plot(mds_t_mm$conf, col = clustering, pch = clusym[clustering])
+pairs(data, col = clustering)
+
+## Model comparison ##
+adjustedRandIndex(clustering, category)
+```
+
+
+### Skew-normal Mixture Models 
+**Numerical instability**
+This algorithm is often numerically unstable. In order to still make it run, follow the steps below in the following order. 
+- Choose a low number of possible clusters (max_nc)
+- Try uni.Gama = TRUE (constraints covariance matrix) 
+- Try Skew.t instead of Skew.normal or vice versa 
+- Reduce the number of observations fitted (fit only on a subset) 
+```{r}
+################
+#### Modify ####
+################
+data <- scale(geyser) 
+max_nc <- 8
+dist_obj <- dist(data)
+category <- kmeans(geyser, 3)$cluster
+################
+set.seed(12345)
+
+#### Compute clustering ####
+# nu is the degrees of freedom (also needed for normal, but not used)
+# If uni.Gama = T -> Covariance matrix constant over clusters 
+s_mm <- smsn.search(data, nu = 1, g.min = 1, g.max = max_nc, family = "Skew.normal")
+
+#### Results ####
+## Display results 
+# Lowest BIC is best! 
+str(s_mm)
+plot(1:max_nc, s_mm$criteria, type = "l", ylab = "BIC", xlab = "Number of clusters")
+
+## Store results 
+clustering <- s_mm$best.model$group 
+table(clustering)
+nc <- length(s_mm$best.model$pii)
+nc
+
+#### Clustering Evaluation
+## PCA and MDS 
+pr_s_mm <- princomp(data)
+plot(pr_s_mm$scores, col = clustering, pch = clusym[clustering])
+mds_s_mm <- mds(as.matrix(dist_obj), ndim = 2)
+mds_s_mm$stress
+plot(mds_s_mm$conf, col = clustering, pch = clusym[clustering])
+pairs(data, col = clustering)
+
+## Model comparison ##
+adjustedRandIndex(clustering, category)
+```
+
+## Multinomial Mixture Model for categorical data 
+### Flexmixedruns 
+
+```{r}
+################
+#### Modify ####
+################
+data <- veronica 
+max_nc <- 5
+category <- numeric(nrow(data))
+category[1:400] <- 1
+category[(401):nrow(data)] <- 2
+# Define continuous variables (fitted with Gaussian Mixtures) and discrete variables (fitted with Multinomial Mixtures) 
+# Must be in right order -> if not, specify xvarsorted = FALSE 
+cont_vars <- 0 
+disc_vars <- ncol(data)
+# Define component to investigate better later 
+comp <- 2
+################
+set.seed(12345)
+
+#### Compute clustering ####
+n_mm <- flexmixedruns(data, continuous = cont_vars, discrete = disc_vars, n.cluster = 1:max_nc, simruns = 10)
+
+#### Results ####
+## Display results 
+# Lowest BIC is best! 
+plot(1:max_nc, n_mm$bicvals, type = "l", xlab = "Number of clusters", ylab = "BIC")
+nc <- n_mm$optimalk
+nc 
+
+## Parameter access 
+# For component comp 
+n_mm$flexout[[nc]]@components[[comp]][[1]]@parameters$pp 
+
+## Store results 
+clustering <- n_mm$flexout[[nc]]@cluster 
+table(clustering)
+
+#### Clustering Evaluation
+## Heatmap 
+data_numeric <- sapply(data[,], unclass)
+# data_numeric <- data 
+# Cluster variables by hierarchical clustering 
+# By default, daisy assumes simple matching for all categorical (type -> nominal)
+dist_obj_col <- daisy(t(data_numeric), metric = "gower")
+# dist_obj_col <- daisy(t(data), metric = "gower", type = list(symm = c(1:nrow(data))))
+# dist_obj_col <- daisy(t(data), metric = "gower", type = list(nominal = c(1:nrow(data))))
+# Alternative: Jaccard (binary)
+# dist_obj_col <- dist(t(data), method = "binary")
+hier_clus_col <- hclust(dist_obj_col, method = "average")
+heatmap(data_numeric[order(clustering),], Rowv = NA,
+        Colv = as.dendrogram(hier_clus_col),
+        RowSideColors = palette()[clustering][order(clustering)],
+        scale = "none")
+
+## Model comparison ##
+adjustedRandIndex(clustering, category)
+```
+
+### PoLCA 
+
+```{r}
+################
+#### Modify ####
+################
+data <- electionwithna
+max_nc <- 10
+category <- numeric(1000)
+category[1:400] <- 1
+category[(401):1000] <- 2
+formula <- cbind(MORALG,CARESG,KNOWG,LEADG,DISHONG,INTELG,
+ MORALB,CARESB,KNOWB,LEADB,DISHONB,INTELB)~1
+# Define component to investigate better later 
+add_graphs = FALSE 
+################
+set.seed(12345)
+
+#### Compute clustering ####
+n_mm <- list()
+n_mm$clus <- list()
+n_mm$bicvals <- numeric(max_nc)
+for (k in 1:max_nc) {
+    n_mm$clus[[k]] <- poLCA(formula, data, nclass=k, graphs = add_graphs)
+    n_mm$bicvals[k] <- n_mm$clus[[k]]$bic
+}
+
+#### Results ####
+## Display results 
+# Lowest BIC is best! 
+plot(1:max_nc, n_mm$bicvals, type = "l", xlab = "Number of clusters", ylab = "BIC")
+nc <- which.min(n_mm$bicvals)
+nc 
+
+## Parameter access 
+# For component comp 
+
+## Store results 
+clustering <- n_mm$clus[[k]]$predclass
+table(clustering)
+
+#### Clustering Evaluation
+## Heatmap 
+data_numeric <- sapply(data[,], unclass)
+# data_numeric <- data 
+# Cluster variables by hierarchical clustering 
+# By default, daisy assumes scaled simple matching for all categorical (type -> nominal)
+dist_obj_col <- daisy(t(data_numeric), metric = "gower")
+# dist_obj_col <- daisy(t(data), metric = "gower", type = list(symm = c(1:nrow(data))))
+# dist_obj_col <- daisy(t(data), metric = "gower", type = list(nominal = c(1:nrow(data))))
+# Alternative: Jaccard (binary)
+# dist_obj_col <- dist(t(data), method = "binary")
+hier_clus_col <- hclust(dist_obj_col, method = "average")
+heatmap(data_numeric[order(clustering),], Rowv = NA,
+        Colv = as.dendrogram(hier_clus_col),
+        RowSideColors = palette()[clustering][order(clustering)],
+        col = grey(seq(1,0,-0.01)), scale = "none")
+
+## Model comparison ##
+adjustedRandIndex(clustering, category)
+```
+
+
+## Functional Data 
+### PCA 
+Data should be in form: 
+- Rows contain observations 
+- Columns contain function values 
+Below, I then automatically transpose the data, because the fda package 
+needs the data exactly the other way round. 
+
+```{r}
+################
+#### Modify ####
+################
+data <- covid21
+data_matr <- as.matrix(covid21[,5:559])
+nbasis <- 100 
+num_pcs <- 5                            # Specify number of components for PCA 
+clustering <- as.numeric(as.factor(covid21$continent))
+
+x_start <- 1                            # Specify range of x-values  
+x_end <- ncol(data_matr)                # Specify range of x-values 
+observation <- 1                        # Specify the observation you want to investigate better 
+residuals <- FALSE                      # Specify if residuals or data should be displayed 
+################
+
+#### Functional data computations #### 
+## B-spline basis
+bbasis <- create.bspline.basis(c(x_start, x_end), nbasis = nbasis)
+## Functional data object 
+fd_obj <- Data2fd(x_start:x_end, y = t(data_matr), basisobj = bbasis)
+mean_fd <- mean.fd(fd_obj) 
+
+#### PCA ####
+## Computation
+pca_fd <- pca.fd(fd_obj, nharm = num_pcs)
+## PC variances 
+pca_fd$varprop
+cumsum(pca_fd$varprop)
+## Approximations via PCA 
+pca_approx <- pca_fd$harmonics 
+pca_coefs <- pca_fd$harmonics$coefs %*% pca_fd$scores[1,] + mean_fd$coefs 
+pca_approx$coefs <- pca_coefs 
+for (i in 2:nrow(data_matr)) {
+    pca_coefs <- pca_fd$harmonics$coefs %*% pca_fd$scores[i,] + mean_fd$coefs 
+    pca_approx$coefs <- cbind(pca_approx$coefs, pca_coefs) 
+}
+
+#### Visualizations ####
+## Basis object 
+plot(bbasis)
+
+## All observations 
+# Raw timeline
+plot(x_start:x_end, data_matr[1,], type = "l", ylim = c(0, max(data_matr)))
+for (i in 2:nrow(data_matr)) points(1:ncol(data_matr), data_matr[i,], type = "l")
+# Approximated timeline
+plot(fd_obj)
+
+## Single observations  
+# Raw timeline 
+plot(x_start:x_end, data_matr[observation,], type = "l")
+# Approximated timeline
+plotfit.fd(t(data_matr), x_start:x_end, fd_obj, index = observation, cex.pch = 0.5, residual = residuals)
+
+## PCA 
+# Principal components 
+plot(pca_fd$harmonics)
+# Clustering and Principal components 
+pairs(pca_fd$scores, col = clustering, pch = clusym[clustering])
+# Approximation 
+plotfit.fd(t(data_matr), x_start:x_end, pca_approx, index = observation, cex.pch = 0.5, residual = residuals)
+```
+
+### FEM 
+This method finds a low-dimensional subspace that gives optimal 
+separation of clusters. 
+```{r}
+################
+#### Modify ####
+################
+fd_obj <- fd_obj 
+pca_fd <- pca_fd 
+max_nc <- 10 
+
+fem_models <- c("DkBk", "DkB", "DBk","DB", "AkjBk",
+"AkjB", "AkBk", "AkB", "AjBk", "AjB", "ABk","AB") 
+################
+
+num_models <- length(fem_models) 
+
+# Initialisations 
+fem_results <- list()
+best_k <- best_bic <- numberic(0)
+fem_bic <- matrix(NA, nrow = num_models, ncol = max_nc) 
+K <- 2:max_nc 
+
+for (i in 1:num_models) {
+    print(fem_models[i])
+    fem_results[[i]] <- funFEM(fd_obj, model = fem_models[i], K = K)
+    fem_bic[i, K] <- fem_results[[i]]$allCriterions$bic 
+    best_k[i] <- which(fem_bic[i,] == max(fem_bic[i, K], na.rm = TRUE))
+    best_bic[i] <- max(fem_bic[i, K], na.rm = TRUE)
+}
+
+#### Results ####
+best_mod_i <- which(best_bic == max(best_bic, na.rm = TRUE))
+best_k[best_mod_i]
+best_bic[best_mod_i]
+fem_models[best_mod_i] 
+best_mod <- fem_results[[i]] 
+best_mod 
+
+clustering <- best_mod$cls 
+
+#### Visualize sub-space #### 
+## PCAs 
+pairs(pca_fd$scores, col = clustering, pch = 19)
+## Projection 
+fd_proj <- t(fd_obj$coefs) %*% best_mod$U 
+pairs(fd_proj, col = clustering, pch = 19)
+plot(fd_proj, col = clustering, pch = 19)
+
+#### Visualize clusterings #####
+## -> See slides 
+```
+
+# Robust statistics 
+## Robust Standardization 
+```{r}
+################
+#### Modify ####
+################
+data <- olive 
+################
+
+#### Median and MAD ####
+centers <- apply(data, 2, median)
+scales <- apply(data, 2, mad)
+data_centered <- sweep(data, 2, centers)
+data_st <- sweep(data_centered, 2, scales, FUN = "/")
+head(data_st)
+
+#### Huber ####
+cent_scal <- apply(data, 2, huberM)
+centers <- sapply(cent_scal, "[[", 1)
+scales <- sapply(cent_scal, "[[", 2)
+data_centered <- sweep(data, 2, centers)
+data_st <- sweep(data_centered, 2, scales, FUN = "/")
+head(data_st)
+```
+## Parameter estimation 
+
+### One variable 
+```{r}
+################
+#### Modify ####
+################
+data <- dortmund 
+variable <- data$birthdeath
+huber_const <- 1.5
+alpha <- 0.75                                           # For estimation of MCD (Minimum Covariance Determinant)
+################
+set.seed(12345)
+
+#### Preliminary analytics #### 
+## Location 
+mean(variable)
+sum(variable > mean(variable)) / length(variable)       # Proportion of observations above / below mean 
+median(variable) 
+
+## Scale 
+sd(variable)
+mad(variable, constant = 1.4826)
+
+
+## Outliers 
+which.min(variable)
+which.max(variable) 
+
+#### Robust statistics #### 
+huberM(variable, k = huber_const)
+```
+
+### Whole dataset 
+
+```{r}
+################
+#### Modify ####
+################
+data <- dortmund 
+alpha = 0.5
+
+var_1 <- 2              # Specify variables for visualization
+var_2 <- 4              # Specify variables for visualization
+################
+set.seed(12345)
+
+#### Preliminary analytics #### 
+## Location 
+colMeans(data)
+colMedians(as.matrix(data))
+
+## Scale 
+summary(data)
+
+## Correlation 
+cor(data[,var_1], data[,var_2])
+
+#### Robust Covariance + Location estimation #### 
+## Computation 
+mcd_obj <- covMcd(data, alpha = alpha) 
+
+## Location
+mcd_obj$center 
+mcd_obj$raw.center 
+
+## Covariance 
+str(mcd_obj$cov)
+str(mcd_obj$raw.cov)
+
+## Correlation
+mcd_obj$cov[var_1, var_2] / sqrt(mcd_obj$cov[var_1, var_1] * mcd_obj$cov[var_2, var_2])
+
+#### Visualize ####
+plot(data[,c(var_1, var_2)])
+## Non-robust
+ellipse(colMeans(data[,c(var_1, var_2)]), cov(data)[c(var_1, var_2), c(var_1, var_2)], alpha = 0.01)
+## Robust 
+ellipse(mcd_obj$center[c(var_1, var_2)], mcd_obj$cov[c(var_1, var_2), c(var_1, var_2)], col = 4, alpha = 0.01)
+```
+
+## Outlier Identification 
+
+Outliers by Mahalanobis distance can be 
+- Faulty measurements 
+- Correct but special 
+- Result from non-normality of the process 
+
+Its better to identify outliers from robust statistics which 
+are not effected by outliers. 
+
+**Important** 
+MCD gives different solutions, depending on the number of variables 
+it is computed. This is a main difference to Covariance matrix. 
+
+```{r}
+################
+#### Modify ####
+################
+data <- dortmund 
+alpha = 0.75
+outlier_level <- 0.99           # When to consider an observation as outlier, based on (normal) Mahanalobis distance 
+################
+set.seed(12345)
+
+#### Visualize #### 
+## Boxplot 
+boxplot(scale(data))
+
+## Mahalanobis distance 
+mcd_obj <- covMcd(data, alpha = alpha) 
+plot(1:nrow(data), sqrt(mcd_obj$mah), ylim = c(0, 30), type = "n", xlab = "Observation", ylab = "Robust Mahalanobis distance")
+text(1:nrow(data), sqrt(mcd_obj$mah), rownames(data), cex = 0.7) 
+abline(sqrt(qchisq(outlier_level, ncol(data) - 1)), 0, col = 2)
+```
+
+## Outliers in regression 
+
+Weights for each observation tell about the importance.
+If weight is zero for an observation, it is most certainly an outlier. 
+```{r}
+################
+#### Modify ####
+################
+data <- starsCYG  
+formula <- log.light ~ log.Te
+# data <- regdata2  
+# formula <- y ~ x1 + x2 + x3
+var_x <- 2                      # Variable of interest, y should be BEFORE x 
+var_y <- 1                      # Position of y in dataset 
+################ 
+set.seed(12345)
+
+pairs(data) 
+#### Non-robust regression ####
+## Computation 
+lm_norm <- lm(formula, data = data)
+summary(lm_norm)
+
+## Diagnostic plots 
+par(mfrow = c(2, 2))
+plot(lm_norm)
+par(mfrow = c(1, 1))
+
+## Visualize regression line 
+plot(data[, c(var_x, var_y)])
+abline(lm_norm$coef[1], lm_norm$coef[var_x])
+
+#### Robust regression #### 
+## Computation
+lm_rob <- lmrob(formula, data = data)                   # MM-estimator 
+lm_rob <- lmrob(formula, data = data, method = "S")   # S-estimator 
+
+## Diagnostic plots 
+summary(lm_rob)
+par(mfrow = c(2, 3))
+plot(lm_rob)
+plot(1:nrow(data), lm_rob$rweights, main = "Observation weights", xlab = "Obs. number", ylab = "Robustness weights")
+par(mfrow = c(1, 1))
+```
